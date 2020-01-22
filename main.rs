@@ -1,5 +1,7 @@
 /*
 Total conversion of the project to Rust
+rustup toolchain add nightly
+cargo install +nightly racer
 */
 extern crate clap;
 
@@ -17,6 +19,7 @@ use ncurses::*;
 
 
 //Network stuff
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::net::TcpListener;
 use std::io::prelude::*;
 use std::net::TcpStream;

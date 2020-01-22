@@ -1,17 +1,35 @@
 fn parse_commandline_arguments(){
-    let matches = App::new("Captive Portal: Hackerman Edition")
+    let commandline_args = App::new("Captive Portal: Hackerman Edition")
     .version("0.1.0")
     .author("moop")
     .about("Captive portal for both security and personal use; FREE to USE unless you are a business! Then it's 'Fuck you, Pay me'")
-    .arg(Arg::with_name("file")
-             .short("f")
-             .long("file")
-             .takes_value(true)
-             .help("A cool file"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
-             .takes_value(true)
+// CHECK if the ip address is an ip address
+    .arg(Arg::with_name("IP Address")
+             .short("i")
+             .long("ipaddress")
+             .takes_value(std::net::IpAddr)
+             .help(""))
+// Sets the port to host the server from
+// check if its a reasonable number please
+    .arg(Arg::with_name("Port")
+             .short("p")
+             .long("port")
+             .takes_value(num)
+             .help("Port to serve the Portal on"))
+    .arg(Arg::with_name("Interface")
+             .short("i")
+             .long("interface")
+             .takes_value(str)
+             .help("Name of the interface to use in monitor mode"))
+    .arg(Arg::with_name("Credentials File")
+             .short("c")
+             .long("credentials")
+             .takes_value(str)
+             .help("Name of credentials file, will create if not used"))
+    .arg(Arg::with_name("Document Root")
+             .short("d")
+             .long("document-root")
+             .takes_value(str)
              .help("Five less than your favorite number"))
     .arg(Arg::with_name("num")
              .short("n")
@@ -38,27 +56,22 @@ fn parse_commandline_arguments(){
              .long("number")
              .takes_value(true)
              .help("Five less than your favorite number"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
-             .takes_value(true)
-             .help("Five less than your favorite number"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
-             .takes_value(true)
-             .help("Five less than your favorite number"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
-             .takes_value(true)
-             .help("Five less than your favorite number"))
-    .get_matches();
+    .get_commandline_args();
   
-  let myfile = matches.value_of("file").unwrap_or("input.txt");
-  println!("The file passed is: {}", myfile);
-  
-  let num_str = matches.value_of("num");
+
+// We check if the ip address passed via command line is actaully an IP
+  let self_ipaddress = commandline_args.value_of("ipaddress").unwrap();
+  if self_ipaddress.is_ipv4 | self_ipaddress.is_ipv6 {
+
+    // Its an ip address so we assign it to the interface later
+
+  }
+
+//
+  let num_str = commandline_args.value_of("port");
+  let num_str = commandline_args.value_of("interface");
+  let num_str = commandline_args.value_of("credentials");
+  let num_str = commandline_args.value_of("document-root");
   match num_str {
     None => println!("No idea what your favorite number is."),
     Some(s) => {
