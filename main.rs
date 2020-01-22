@@ -125,6 +125,16 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 // currently converting from cpp to rust
+/*
+returns a string containing the html needed to make wither a redirect or form with
+ beefhook location and formaction as the first and second parameters respectively.
+ both strings;
+ @param hook_loc Beef Hook Location
+ @param form_action Form Action
+ @param form_or_redirect, true to return redirect, false to return form
+ @return The html you need when the xenomorphs come calling
+
+*/
 fn make_html( hook_loc,  redirect,  formaction, bool form_or_redirect) {
     let html_redirect_body;
     let html_form_body;
