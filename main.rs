@@ -6,6 +6,8 @@ Total conversion of the project to Rust
 use std::char;
 use std::thread;
 use std::time::Duration;
+use std::io::{self, Write};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 //Ncurses
 extern crate ncurses;
@@ -69,6 +71,33 @@ fn parse_commandline_arguments(){
 
 }
 
+// add an error logger HERE maybe?
+fn termcolorprint(text_color, text ) -> io::Result<()> {
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+    stdout.set_color(ColorSpec::new().set_fg(Some(Color::text_color)))?;
+    writeln!(&mut stdout, text)
+};
+
+// add conditional to use ncurses output
+fn shutdown_server(){
+    termcolorprint( "red", "SHUTTING DOWN");
+    update_window(stdscr, message);
+    refresh();
+};
+
+/* Setup http responder*/
+fn setup_listener(){
+    let listener = TcpListener::bind("127.0.0.1:80").unwrap();
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+        // Spawn a new thread for every connection
+        // add code to limit threads
+        thread::spawn(|| {
+            handle_connection(stream);
+        });
+    }
+}
+
 // server handler
 fn handle_connection(mut stream: TcpStream) {
     
@@ -96,18 +125,8 @@ fn handle_connection(mut stream: TcpStream) {
 
 }
 
-
-
 fn main()
 {
-
-/* Setup http responder*/
-    let listener = TcpListener::bind("127.0.0.1:80").unwrap();
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        handle_connection(stream);
-    }
-
   /* Setup ncurses. */
   initscr();
   raw();
