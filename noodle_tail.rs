@@ -1,5 +1,5 @@
 /*  Noodle Tails, Solving all your spaghetty code needs since I first thought of it!*/
-// Here we got all the functions that don't fit elsewhere... carefully documented please!
+// Here we got all the functions that don't fit elsewhere
 
 
 // print to terminal with color funtion

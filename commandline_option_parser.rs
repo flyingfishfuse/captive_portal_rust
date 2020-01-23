@@ -80,24 +80,14 @@ fn parse_commandline_arguments(){
     }
 
 
-  let monitor_interface = commandline_args.value_of("Interface");
-
-  let credentials_file = commandline_args.value_of("Credentials File");
-
-  let DOCUMENT_ROOT = commandline_args.value_of("Document Root");
-
-  let external_html = commandline_args.value_of("External HTML");
-
-  let beef_hook = commandline_args.value_of("Beef Hook");
-  hook_location =
-  hook_location = hook_location + ":3000";
-  system("service beef start");
-    } else {
-        hook_location = "";
-    };
-
-
-  let captive_portal = commandline_args.value_of("Captive Portal");
+  let monitor_interface     = commandline_args.value_of("Interface");
+  let credentials_file      = commandline_args.value_of("Credentials File");
+  let DOCUMENT_ROOT         = commandline_args.value_of("Document Root");
+  let external_html         = commandline_args.value_of("External HTML");
+  let beef_hook             = commandline_args.value_of("Beef Hook");
+  let hook_location         = format!("{}{}", beef_hook, ":3000";
+  let captive_portal        = commandline_args.value_of("Captive Portal");
+  let credentials_file      = commandline_args.value_of("credentials")"/path/to/file";
 
 
 
@@ -105,11 +95,9 @@ fn parse_commandline_arguments(){
         //auto pwd = filesystem::current_path();
         //document_root = pwd + arguments
     };
-
-    document_root = arguments["document-root"].as<std::string>();
-    credentials_file = arguments["credentials"].as<std::string>();
-    PORT = arguments["port"].as<int>();
-    redirect_ip =  arguments["address"].as<std::string>() + "/login";
-    addr = arguments["address"].as<std::string>();
-  };
   }
+ 
+  system("service beef start");
+    } else {
+        hook_location = "";
+    };

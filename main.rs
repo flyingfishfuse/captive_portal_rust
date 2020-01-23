@@ -29,10 +29,12 @@ cargo install +nightly racer
 */
 mod captive_portal_option_parser;
 mod login_redirect_generator;
+mod noodle_tail;
+mod threadpoo;
 // USE LIKE THIS captive_portal_option_parse::parse_commandline_arguments();
 
-extern crate scoped_threadpool;
-use scoped_threadpool::Pool;
+//extern crate scoped_threadpool;
+//use scoped_threadpool::Pool;
 extern crate clap;
 // thread pool from documentation
 //use threadpool::ThreadPool;
@@ -43,7 +45,11 @@ use std::char;
 use std::thread;
 use std::time::Duration;
 use std::io::{self, Write};
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use termcolor::{Color, 
+                ColorChoice, 
+                ColorSpec, 
+                StandardStream, 
+                WriteColor};
 use clap::{Arg, App};
 
 //Ncurses
@@ -52,70 +58,53 @@ use ncurses::*;
 
 
 //Network stuff
-use std::net::{SocketAddr, TcpListener, TcpStream, IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{SocketAddr, 
+              TcpListener, 
+              TcpStream, 
+              IpAddr, 
+              Ipv4Addr, 
+              Ipv6Addr};
 use std::io::prelude::*;
-
-/* Term Color Function */
-fn termcolorprint(text_color, text ) -> io::Result<()> {
-  let mut stdout = StandardStream::stdout(ColorChoice::Always);
-  stdout.set_color(ColorSpec::new().set_fg(Some(Color::text_color)))?;
-  writeln!(&mut stdout, text)
-};
-
 
 // Some variables for static things
 
-// Assign the following two by getting terminal dimensions
+// Assign the following two by getting terminal 
+// dimensions
 let height_rows               = 0;
 let width_columns             = 0;
-
-// set by finding minimum size necessary for properly displaying the data
-// presented
+// set by finding minimum size necessary 
+// for properly displaying the data presented
 let mut init_display_height   = 0;
 let mut init_display_width    = 0;
-
-// Defaults for beefhook, captive portal, and ncurses switches
+// Defaults for beefhook, captive portal, and 
+// ncurses switches
 let hook                      = true;
 let PORTAL                    = true;
 let PORT                      = 80;
 let curses                    = true;
 
-// Path to the file for storing credentials.
-let credentials_file          = "/path/to/file";
-
-fn thread_pool_execute(max_workers){
-    // Create a pool of worker threads
-    let mut pool = Pool::new( max_workers );
-    // This borrows the pool, and blocks until all threads are done.
-    pool.scoped( |scoped| {
-        filter_map(Result::ok) {
-            // Fire-off a worker thread and run the containing code in the scope of the pool. Does not block.
-            scoped.execute( move || {
-                some_action{
-            // Parse the result
-                    Ok() => {println!("", wat);},
-                    Err( err ) => {panic!("Error - {}", err );}
-
-            };
-        };
-    );
-};
 // add conditional to use ncurses output
 fn shutdown_server(){
     termcolorprint( "red", "SHUTTING DOWN");
     //add stuff here
 };
 
-/* Setup http responder*/
-fn setup_listener(){
+/////////////////////////////////////////////////
+/* Setup http responder*/////////////////////////
+// portal IP is an array 
+//   SocketAddr::from(([127, 0, 0, 1], 80))
+//   let portal_ip = [127, 0, 0, 1]
+//   SocketAddr::from((portal_ip, 80))
+/////////////////////////////////////////////////
+fn setup_listener(portal_ip, localhost_port){
     // these are the addresses we want to create for the captive portal to use
     // localhost for some stuff
-    let localhost_address = SocketAddr::from(([127, 0, 0, 1], 80));
+    let localhost_address = SocketAddr::from(([127, 0, 0, 1], localhost_port));
     let portal_address    = [
         // port 80 for standard HTTP connections
-        SocketAddr::from(([127, 0, 0, 1], 80)),
+        SocketAddr::from((portal_ip, 80)),
         // port 443 for SSL!
-        SocketAddr::from(([127, 0, 0, 1], 443)),
+        SocketAddr::from((portal_ip, 443)),
         ];
     // bind to all addresses
     let https_listener = TcpListener::bind(&addrs[..]).unwrap();
@@ -167,14 +156,10 @@ fn main()
   /* Setup ncurses. */
   initscr();
   raw();
-
   /* Allow for extended keyboard (like F1). */
   keypad(stdscr(), true);
   noecho();
-
-  /* Prompt for a character. */
   printw("Enter a character: ");
-
   /* Wait for input. */
   let ch = getch();
   if ch == KEY_F1
@@ -193,10 +178,8 @@ fn main()
     printw(format!("{}\n", char::from_u32(ch as u32).expect("Invalid char")).as_ref());
     attroff(A_BOLD() | A_BLINK());
   }
-
   /* Refresh, showing the previous message. */
   refresh();
-
   /* Wait for one more character before exiting. */
   getch();
   endwin();
