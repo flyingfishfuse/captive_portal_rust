@@ -45,10 +45,8 @@ use ncurses::*;
 
 
 //Network stuff
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::net::TcpListener;
+use std::net::{SocketAddr, TcpListener, TcpStream, IpAddr, Ipv4Addr, Ipv6Addr};
 use std::io::prelude::*;
-use std::net::TcpStream;
 
 /* Term Color Function */
 fn termcolorprint(text_color, text ) -> io::Result<()> {
@@ -141,14 +139,30 @@ fn shutdown_server(){
 
 /* Setup http responder*/
 fn setup_listener(){
-    let listener = TcpListener::bind("127.0.0.1:80").unwrap();
+    // these are the addresses we want to create for the captive portal to use
+    // localhost for some stuff
+    let localhost_address = SocketAddr::from(([127, 0, 0, 1], 80));
+    let portal_address    = [
+        // port 80 for standard HTTP connections
+        SocketAddr::from(([127, 0, 0, 1], 80)),
+        // port 443 for SSL!
+        SocketAddr::from(([127, 0, 0, 1], 443)),
+        ];
+    // bind to all addresses
+    let https_listener = TcpListener::bind(&addrs[..]).unwrap();
+    // binds listener to interface at IP and PORT
+    let localhost_listener = TcpListener::bind(&localhost_address).unwrap();
+    // only so many threads can be allowed to prevent DDOS, race conditions, and possible buffer overflows
+    let pool = ThreadPool::new(4);
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        // Spawn a new thread for every connection
-        // add code to limit threads
-        thread::spawn(|| {
+        // Spawn a new thread for every connection up to the maximum
+        pool.execute(|| {
             handle_connection(stream);
         });
+        //thread::spawn(|| {
+        //    handle_connection(stream);
+        //});
     }
 }
 
