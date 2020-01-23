@@ -89,6 +89,9 @@ impl Worker {
 extern crate scoped_threadpool;
 use scoped_threadpool::Pool;
 
+// random functions library file
+use crate::noodle_tail;
+
 fn thread_pool_execute(max_workers){
     // Create a pool of worker threads
     let mut pool = Pool::new( max_workers );

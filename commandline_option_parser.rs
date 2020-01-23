@@ -46,9 +46,24 @@ fn parse_commandline_arguments(){
              .long("portal")
              .takes_value(true)
              .help("Boolean switch to implement the redirect that is the foundation of a captive portal"))
+    .arg(Arg::with_name("Verbosity")
+             .short("v")
+             .long("verbosity")
+             .takes_value(str)
+             .help("Boolean switch to implement the redirect that is the foundation of a captive portal"))
+
     .get_commandline_args();
 
-
+  // Vary the output based on how many times the user used the "verbose" flag
+  // (i.e. 'myprog -v -v -v' or 'myprog -vvv' vs 'myprog -v'
+  match commandline_args.occurrences_of("v") {
+      0 => println!("No verbose info")      & let verbosity = "low",
+      1 => println!("Some verbose info")    & let verbosity = "medium",
+      2 => println!("Tons of verbose info") & let verbosity = "high",
+      3 => println!("Don't be crazy")       & let verbosity = "doomwalker",
+      _  => error_handler("User put a forbidden value in the --verbose flag");
+    }
+  
 // We check if the ip address passed via command line is actaully an IP
   let self_ipaddress = commandline_args.value_of("ipaddress").unwrap();
   if self_ipaddress.is_ipv4 | self_ipaddress.is_ipv6 {
