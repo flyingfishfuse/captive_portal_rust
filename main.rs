@@ -28,6 +28,7 @@ cargo install +nightly racer
   Load all external "modules"
 */
 mod captive_portal_option_parser;
+mod login_redirect_generator;
 // USE LIKE THIS captive_portal_option_parse::parse_commandline_arguments();
 
 extern crate scoped_threadpool;
@@ -81,28 +82,6 @@ let curses                    = true;
 
 // Path to the file for storing credentials.
 let credentials_file          = "/path/to/file";
-
-// add an error logger HERE maybe?
-fn termcolorprint(text_color, text ) -> io::Result<()> {
-    let mut stdout = StandardStream::stdout(ColorChoice::Always);
-    stdout.set_color(ColorSpec::new().set_fg(Some(Color::text_color)))?;
-    writeln!(&mut stdout, text)
-};
-
-//why do I have to do this people?
-// This is a series of various string concatention functions
-fn concat_format_nl(text1 , text2){
-    format!("{}{}", text1 , text2)
-}
-fn concat_format(text1 , text2){
-    format("{}{}", text1 , text2)
-}
-fn concat_print_nl(text1 , text2){
-    println!("{}{}", text1 , text2)
-}
-fn concat_print(text1 , text2){
-    println("{}{}", text1 , text2)
-}
 
 fn thread_pool_execute(max_workers){
     // Create a pool of worker threads
@@ -182,20 +161,6 @@ fn handle_connection(mut stream: TcpStream) {
     }
 
 }
-
-// currently converting from cpp to rust
-/*
-returns a string containing the html needed to make wither a redirect or form with
- beefhook location and formaction as the first and second parameters respectively.
- both strings;
- @param hook_loc Beef Hook Location
- @param form_action Form Action
- @param form_or_redirect, true to return redirect, false to return form
- @return The html you need when the xenomorphs come calling
-
-*/
-std::i128
-
 
 fn main()
 {

