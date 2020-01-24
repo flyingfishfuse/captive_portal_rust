@@ -15,3 +15,4 @@ I also give you the option to beefhook every host that gets caught in the attack
   
 TODOTOFU:
   - How can I make a TODO if I havent even ported over all the code yet?
+  - Dont mention the glaringly obvious errors and syntax fuxkups please, I know whats wrong and what needs to be done, you arent in my head reading my thoughts. I'm learning a new language by translating my code, yeah its gonna have some confusion in it. "just because it looks wrong doesnt mean its going to BE wrong"
