@@ -1,4 +1,5 @@
 #!/bin/bash/
+# TODO: add option to choose from LIVE_DISK.ISO or debootstrap
 ## $PROG Debo0tstrap Chro0t Generat0r v1 
 ##    This program makes a complete APT based distro in a folder and moves it to a disk
 ##    Of your choosing OR it can make a network accessible sandbox for you to do whatever in.
@@ -20,7 +21,7 @@
 ##   -d, --device DEVICE      The device to install the Distro to               (Default: NONE THATS DANGEROUS!)
 ##   -s, --sandbox_only       Only makes the SANDBOX                            (Default: NONE)
 ##   -f, --filesystem_only    Only makes the disk and filesystem structure      (Default: NONE)
-##
+## 
 ## Commands:
 ##   -h, --help             Displays this help and exists <-- no existential crisis here!
 ##   -v, --version          Displays output version and exits
@@ -158,8 +159,7 @@ fatal_red = '\033[1;31m'
 
 alias Reset="tput sgr0"      #  Reset text attributes to normal
                              #+ without clearing screen.
-cecho ()
-{
+cecho (){
 	# Argument $1 = message
 	# Argument $2 = color
 	local default_msg="No message passed."
@@ -170,7 +170,7 @@ cecho ()
 	color     = ${2:$white}
 	# extra message field in case you want uncolored stuff after the colored stuff
 	last_word = ${3:''}
-	if [$color='lolz']
+	if [ $color = 'lolz' ]
 	then
 		echo $message | lolcat
 		return
@@ -182,6 +182,7 @@ cecho ()
 		Reset                      # Reset to normal.
 		echo "$last_word"
 		return
+    fi
 }  
 
 info()  { cecho "[INFO]" info_blue " $*"; }
@@ -202,9 +203,8 @@ IF_CNC='eth0'
 IF_IP_CNC='192.168.0.44'
 # Internet access for the LAN, This is your internet router.
 GATEWAY='192.168.0.1'
-error_exit()
-{
-	cecho "$1" red 1>&2 >> $LOGFILE
+error_exit(){
+	cecho "$1" red "" 1>&2 >> $LOGFILE
 	exit 1
 }
 
@@ -232,9 +232,8 @@ check_os () {
   fi
 }
 
-deboot_first_stage()
-{
-# Sequential commands with error checking	
+deboot_first_stage(){
+##### Sequential commands with error checking ##########################################################################
 	cecho "[+] Beginning Debootstrap" yellow
 	if sudo debootstrap --components $COMPONENTS --arch $ARCH bionic $SANDBOX $REPOSITORY >> $LOGFILE; then
 	    cecho "[+] Debootstrap Finished Successfully!" green
@@ -242,7 +241,7 @@ deboot_first_stage()
 		error_exit "[-]Debootstrap Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	fi
 
-#resolv.conf copy
+##### resolv.conf copy #################################################################################################
 	echo "[+] Copying Resolv.conf" yellow
 	if sudo cp /etc/resolv.conf $SANDBOX/etc/resolv.conf; then
 	    cecho "[+] Resolv.conf copied!" green 
@@ -250,7 +249,7 @@ deboot_first_stage()
 		error_exit "[-]Copy Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	fi
 
-# sources.list copy
+##### sources.list copy ################################################################################################
     cecho "[+] Copying Sources.list" yellow
 	if sudo cp /etc/apt/sources.list $SANDBOX/etc/apt/; then
 	    cecho "[+] Sources.list copied!" green 
@@ -258,22 +257,22 @@ deboot_first_stage()
 		error_exit "[-]Copy Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	fi
 
-#mount and bind the proper volumes
-# /dev
+##### Mount and bind the proper volumes ##################################################################################
+############### /dev ###############
 	cecho "[+] Mounting /dev"  yellow
 	if sudo mount -o bind /dev $SANDBOX/dev; then
 	    cecho "[+] Mounted!" green 
 	else
 		error_exit "[-]Mount Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	fi
-# /proc
+############### /proc ###############
     cecho "[+] Mounting /proc" yellow
 	if sudo mount -o bind -t proc /proc $SANDBOX/proc; then
 	    cecho "[+] Mounted!" green 
 	else
 		error_exit "[-]Mount Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	fi
-# /sys
+############# /sys ###############
     cecho "[+] Mounting /dev" yellow
 	if sudo mount -o bind -t sys /sys $SANDBOX/sys; then
 	    cecho "[+] Mounted!" green 
@@ -281,9 +280,8 @@ deboot_first_stage()
 		error_exit "[-]Mount Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	fi
 }
-# Finish setting up the basic system
-deboot_second_stage()
-{
+############################### Finish setting up the basic system #########################################################
+deboot_second_stage(){
 	sudo chroot $SANDBOX
 	useradd $USER 
 	passwd  $USER
@@ -306,41 +304,172 @@ deboot_third_stage()
 
 }
 
-# TOFOMOFO: check for disk space and throw a warning if needed 
-setup_disk()
-{
-# This creates the basic disk structure of an EFI disk with a single OS.
-# You CAN boot .ISO Files from the persistance partition if you mount in GRUB2 
-    ## EFI
-    parted /dev/$WANNABE_LIVE_DISK --script mkpart EFI fat16 1MiB 100MiB
-    ## LIVE disk partition   
-    parted /dev/$WANNABE_LIVE_DISK --script mkpart live fat16 100MiB 3GiB
-    ## Persistance Partition
-    parted /dev/$WANNABE_LIVE_DISK --script mkpart persistence ext4 3GiB 100%  
-    ## Sets filesystem flag
-    parted /dev/$WANNABE_LIVE_DISK --script set 1 msftdata on
-    ## Sets boot flag for legacy (NON-EFI) BIOS
-    parted /dev/$WANNABE_LIVE_DISK --script set 2 legacy_boot on
-    parted /dev/$WANNABE_LIVE_DISK --script set 2 msftdata on
+#takes an argument
+check_for_space(){
+    reqSpace=100000000
+    availSpace=$(df "${1}" | awk 'NR==2 { print $4 }')
+    if (( availSpace < reqSpace )); then
+        echo "not enough Space" >&2
+        exit 1
+    fi
+}
+####################################################################################################################
+# TOFOMOFO: check for disk space and throw a warning if needed                                                     #
+partition_disk() {                                                                                                 #
+# This creates the basic disk structure of an EFI disk with a single OS.                                           #
+# You CAN boot .ISO Files from the persistance partition if you mount in GRUB2                                     #
+#                                                                                                                  #
+##### EFI ##########################################################################################################
+    info "Creating EFI partition"
+    if parted /dev/$WANNABE_LIVE_DISK --script mkpart EFI fat16 1MiB 100MiB; then
+        cecho "[+] EFI Partition Created!" green
+    else
+		error_exit "[-]Partitioning EFI Failed! Check the logfile!" 1>&2 >> $LOGFILE
+	fi
+
+##### LIVE disk partition ##########################################################################################
+    info " Creating EFI partition"
+    if parted /dev/$WANNABE_LIVE_DISK --script mkpart live fat16 100MiB 3GiB; then
+        cecho "[+] Live Disk Partition Created!" green
+    else
+		error_exit "[-]Partitioning Live Disk Failed! Check the logfile!" 1>&2 >> $LOGFILE
+	fi
+
+##### Persistance Partition ########################################################################################
+    info " Creating EFI partition"
+    if parted /dev/$WANNABE_LIVE_DISK --script mkpart persistence ext4 3GiB 100% ; then
+        cecho "[+] Persistance Partition Created!" green
+    else
+		error_exit "[-]Partitioning Persistance Failed! Check the logfile!" 1>&2 >> $LOGFILE
+	fi
+
+##### Sets filesystem flag #########################################################################################
+    info " Setting MSFTata Flag On EFI partition"
+    if parted /dev/$WANNABE_LIVE_DISK --script set 1 msftdata on; then
+        cecho "[+] MSFTdata Flag Set on EFI Partition!" green
+    else
+		error_exit "[-] MSFTdata Flag Setting On EFI Failed! Check the logfile!" 1>&2 >> $LOGFILE
+	fi
+
+##### Sets boot flag for legacy (NON-EFI) BIOS ######################################################################
+    info " Setting Legacy Boot Flag On Live Disk"
+    if parted /dev/$WANNABE_LIVE_DISK --script set 2 legacy_boot on; then
+        cecho "[+] Legacy Boot Flag Set on Live Disk Partition!" green
+    else
+		error_exit "[-]NON-EFI Boot Sector Flag Setting On Live Disk Failed! Check the logfile!" 1>&2 >> $LOGFILE
+	fi
+ 
+ ##### Sets msftdata flag ############################################################################################
+    info " Setting MSFTata Flag On Live Disk"
+    if parted /dev/$WANNABE_LIVE_DISK --script set 2 msftdata on; then
+        cecho "[+] MSFTdata Flag Set on Live Disk Partition!" green
+    else
+		error_exit "[-]MSFTdata Flag Setting On Live Disk Failed! Check the logfile!" 1>&2 >> $LOGFILE
+	fi
+}
+
+mount_iso_on_temp() { 
+    
+    info "Mounting Live ISO on /tmp/live-iso"
+    if mount -oro live.iso /tmp/live-iso; then
+        cecho "[+] ISO Successfully Mounted On /tmp/live-iso!"
+    else {
+        error_exit "[-] Could Not Mount ISO! Check the logfile!" 1>&2 >> $LOGFILE
+    }
+    fi
+}
+
+format_disk(){
 # Here we make the filesystems for the OS to live on
+    
     ## EFI
-    mkfs.vfat -n EFI /dev/{$WANNABE_LIVE_DISK}1
+    info " Creating Fat32 Filesystem For EFI on /dev/{$WANNABE_LIVE_DISK}1"
+    if test -f /dev/{$WANNABE_LIVE_DISK}1; then
+        if mkfs.vfat -n EFI /dev/{$WANNABE_LIVE_DISK}1; then
+            cecho "[+] Created Fat32 Filesystem on EFI Partion " green
+        else 
+            error_exit "[-] Failed! Check the logfile!" 1>&2 >> $LOGFILE
+        fi
+    fi
     ## LIVE disk partition
-    mkfs.vfat -n LIVE /dev/{$WANNABE_LIVE_DISK}2
+    info " Creating Fat32 Filesystem on Live Disk Partition"
+    if test -f /dev/{$WANNABE_LIVE_DISK}; then
+        if mkfs.vfat -n LIVE /dev/{$WANNABE_LIVE_DISK}2; then
+            cecho "[+] Created Fat32 Filesystem on Live Disk Partion " green
+        else 
+            error_exit "[-] Creation of Fat32 Filesystem on Live Disk Partition Failed! Check the logfile!" 1>&2 >> $LOGFILE
+        fi
+    fi
+
     ## Persistance Partition
-    mkfs.ext4 -F -L persistence /dev/{$WANNABE_LIVE_DISK}3
+    if test -f /dev/${$WANNABE_LIVE_DISK}; then
+        info "Creating Filesystem On Persistance Partition"
+        if mkfs.ext4 -F -L persistence /dev/{$WANNABE_LIVE_DISK}3; then
+            cecho "[+] Created Ext4 Filesystem on Persistance Partion " green
+        else 
+            error_exit "[-] Creation of Ext4 Filesystem on Persistance Partition Failed! Check the logfile!" 1>&2 >> $LOGFILE
+        fi
+    fi
+    
     # Creating Temporary work directories
-    mkdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso
+    info "[+] Creating Temporary Work Directories"
+    
+    if mkdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
+        cecho "[+] Created Folders In /tmp" green
+    else {
+        error_exit "[-] Could Not Create Folders in /tmp ! Check the logfile!" 1>&2 >> $LOGFILE
+    }
+    fi
+    
     # Mounting those directories on the newly created filesystem
-    mount /dev/$WANNABE_LIVE_DISK /tmp/usb-efi
-    mount /dev/$WANNABE_LIVE_DISK /tmp/usb-live
-    mount /dev/$WANNABE_LIVE_DISK /tmp/usb-persistence
+    info "Mounting /tmp/usb-efi/ On dev/${WANNABE_LIVE_DISK}1"
+    
+    if mount /dev/${WANNABE_LIVE_DISK}1 /tmp/usb-efi; then
+        cecho "[+] Mounted Sucessfully!" green
+    else {
+        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!" 1>&2 >> $LOGFILE
+    }    
+    fi
+    
+    #mount Live Partition
+    info "Mounting /tmp/usb-live/ On dev/${WANNABE_LIVE_DISK}2"
+    
+    if mount /dev/${WANNABE_LIVE_DISK}2 /tmp/usb-live; then
+        cecho "[+] Mounted Sucessfully!" green
+    else {
+        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!" 1>&2 >> $LOGFILE
+    }
+    fi
+
+    info "Mounting /tmp/usb-persistence/ On dev/${WANNABE_LIVE_DISK}3"
+    
+    if mount /dev/${WANNABE_LIVE_DISK}3 /tmp/usb-persistence; then
+        cecho "[+] Mounted Sucessfully!" green
+    else {
+        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!" 1>&2 >> $LOGFILE
+    }
     # Mount the ISO on a temp folder to get the files moved
-    mount -oro live.iso /tmp/live-iso
-    cp -ar /tmp/live-iso/* /tmp/usb-live
+    
+    fi
+
+    #Mounts the ISO file if an ISO is used
+    mount_iso_on_temp;
+
+    if cp -ar /tmp/live-iso/* /tmp/usb-live; then
+        cecho "[+] "
+    else {
+
+    }
+    fi
     # IMPORTANT! This establishes persistance! UNION is a special mounting option 
     # https://unix.stackexchange.com/questions/282393/union-mount-on-linux
-    echo "/ union" > /tmp/usb-persistence/persistence.conf
+    info "Establishing Persistence!"
+    if echo "/ union" > /tmp/usb-persistence/persistence.conf; then
+        cecho "[+] Union Mount Of Persistence Partition On Root Filesystem Should Work Now!"
+    else {
+        error_exit "[-] Could Not Establish Persistence! Check the logfile!" 1>&2 >> $LOGFILE
+    }
+
     # Install GRUB2
     # https://en.wikipedia.org/wiki/GNU_GRUB
     ## Script supported targets: arm64-efi, x86_64-efi, , i386-efi
@@ -397,7 +526,7 @@ setup_disk()
 
 # finish this you doo doo head
 verify_live_iso(){
-
+    echo "something clever"
 }
 
 #Makes an interface with iproute1
@@ -430,7 +559,7 @@ setup_host_networking(){
 }
 #this is a seperate "computer", The following is in case you want to setup another
 #virtual computer inside this one and allow to the outside
-sandbox_forwarding(){
+#sandbox_forwarding(){
 	#Allow forwarding on Sandbox IFACE
 	#sysctl -w net.ipv4.conf.$SANDBOX_IFACE_NAME.forwarding=1
 	#Allow forwarding on Host IFACE
@@ -438,7 +567,7 @@ sandbox_forwarding(){
 	#iptables -A FORWARD -i $SANDBOX_IFACE_NAME -o $HOST_IFACE_NAME -j ACCEPT
 	#Allow from outside to sandbox
 	#iptables -A FORWARD -i $HOST_IFACE_NAME -o $SANDBOX_IFACE_NAME -j ACCEPT
-}
+#}
 #run this from the Host
 establish_network(){
 	# 1. Delete all existing rules
