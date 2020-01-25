@@ -24,8 +24,11 @@
 ##   -c, --compenent COMPO    Which repository components are included          (Default: main,contrib,universe,multiverse)
 ##   -r, --repositorie REPO   The Debian-based repository. E.g. "Ubuntu"        (Default: http://archive.ubuntu.com/ubuntu/)
 ##   -d, --device DEVICE      The device to install the Distro to               (Default: NONE THATS DANGEROUS!)
+##
+##       Boolean Options : "y" for YES, "n" for NO
 ##   -s, --sandbox_only       Only makes the SANDBOX                            (Default: NONE)
 ##   -f, --filesystem_only    Only makes the disk and filesystem structure      (Default: NONE)
+##   -x, --create_iso         Create an ISO from the sandbox                    (Default: n)
 ## 
 ## Commands:
 ##   -h, --help             Displays this help and exists <-- no existential crisis here!
@@ -92,12 +95,16 @@ device()
 }
 sandbox_only()
 {
-    ONLY_SANDBOX = 0
+    SANDBOX = 0
 }
 filesystem_only()
 {
-	ONLY_FILESYSTEM = 0
+	FILESYSTEM = 0
 }
+create_iso() {
+    MAKE_ISO_opt = 'n'
+}
+
 #greps all "##" at the start of a line and displays it in the help text
 help() {
   grep "^##" "$0" | sed -e "s/^...//" -e "s/\$PROG/$PROG/g"; exit 0
@@ -107,6 +114,7 @@ version() {
   help | head -1
 }
 # run the [ test command; if it succeeds, run the help command. $# is the number of arguments
+# if the number of arguments fed to the program is 0, show the help
 [ $# = 0 ] && help
 
 # While there are arguments to parse:
@@ -131,6 +139,49 @@ while [ $# -gt 0 ]; do
   if [ -z "$CMD" ]; then echo "ERROR: Command '$1' not supported"; exit 1; fi
   shift; eval "$CMD" $@ || shift $? 2> /dev/null
 done
+
+# you better follow directions better or you are going to fuck your shit up
+yn(){
+    if ${1} | tr [:upper:] [:lower:] == "n" ; then
+        echo 'n'
+    elif ${1} | tr [:upper:] [:lower:] == "y" ; then
+        echo "y"
+    else {
+        error_exit "Something Strange happened in the menu option parsing! Check the Logfile!!"
+    }
+    fi
+}
+analyze_yes_no_opts(){
+###### ISO CREATION ################################################
+    if $(yn) $MAKE_ISO_opt == "n" ; then
+        MAKE_ISO = 0
+    elif $(yn) $MAKE_ISO_opt == "y" ; then
+        MAKE_ISO = 1
+    else {
+        error_exit " That wasn't a 'y' or 'n' in those boolean options"
+    }
+    fi
+    
+ ###### SANDBOX ONLY ###################################################   
+    if $(yn) $SANDBOX == "n" ; then
+        ONLY_SANDBOX = 0    
+    elif $(yn) $SANDBOX == "y" ; then
+        ONLY_SANDBOX = 1
+    else {
+        error_exit " That wasn't a 'y' or 'n' in those boolean options"
+    }
+    fi
+}
+###### FILESYSTEM ONLY ################################################
+    if $(yn) $FILESYSTEM == "n" ]; then
+        ONLY_FILESYSTEM = 0
+    elif $(yn) $FILESYSTEM == "n" ]; then
+        ONLY_FILESYSTEM = 1
+    else {
+        error_exit " That wasn't a 'y' or 'n' in those boolean options"
+    }
+    fi
+}
 
 ######################################################################
 #
@@ -219,7 +270,7 @@ get_permission () {
 
   read -rp  "Are you sure you wish to continue (Y/n)? " 
   if [ "$(echo "${REPLY}" | tr "[:upper:]" "[:lower:]")" = "n" ] ; then
-    fatal 'Installation aborted'
+    fatal 'Exiting Program'
   fi
 }
 check_os () {
@@ -235,6 +286,7 @@ check_os () {
   elif [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]; then
     fatal "Cannot work on :" "$OS"
   fi
+
 }
 
 deboot_first_stage(){
@@ -476,6 +528,7 @@ format_disk(){
     else {
         error_exit "[-] Could Not Establish Persistence! Check the logfile!" 1>&2 >> $LOGFILE
     }
+    fi
 
     # Install GRUB2
     # https://en.wikipedia.org/wiki/GNU_GRUB
@@ -485,7 +538,7 @@ format_disk(){
     #########################
     ##      64-BIT OS       #
     #########################
-    if [ $BIT_SIZE = "32" ]    
+    if [ $BIT_SIZE = "64" ]; then
         if [ $ARCH == "ARM" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
             if grub-install --removable --target=arm-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
@@ -493,14 +546,14 @@ format_disk(){
 	        else
 		        error_exit "[-]GRUB2 Install Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	        fi   
-        else if [ $ARCH == "X86" ] ; then
+        elif [ $ARCH == "X86" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
             if grub-install --removable --target=i386-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK; then
                 cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
 		        error_exit "[-]GRUB2 Install Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	        fi
-        else if [ $ARCH == "X64" ] ; then
+        elif [ $ARCH == "X64" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
             if grub-install --removable --target=X86_64-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
 	            cecho "[+] GRUB2 Install Finished Successfully!" green
@@ -509,7 +562,8 @@ format_disk(){
 	        fi
         else
             cecho "Something WIERD happened, Throw a banana and try again!"
-    
+        fi
+    fi
     # Copy the MBR for syslinux booting of LIVE disk
     dd bs=440 count=1 conv=notrunc if=/usr/lib/syslinux/mbr/gptmbr.bin of=/dev/sdX
     
@@ -598,19 +652,22 @@ establish_network(){
 ############################
 ##--	Menu System		--##
 ############################
+get_permission;
 
 PS3="Choose your doom"
 select option in sandbox_connect setup_network create_disk quit
 do
 	case $option in
     	sandbox_connect) 
-			connect_sandbox
+			connect_sandbox;;
         setup_network) 
-            establish_network
+            establish_network;;
         create_disk)
-            setup_disk
+            setup_disk;;
         quit)
         	break;;
+        *)
+            warn "What exactly are you trying to do MISTER!?"
     esac
 done
 
