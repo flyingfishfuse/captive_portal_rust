@@ -367,6 +367,7 @@ deboot_third_stage()
 
 #takes an argument
 check_for_space(){
+    
     reqSpace=100000000
     availSpace=$(df "${1}" | awk 'NR==2 { print $4 }')
     if (( availSpace < reqSpace )); then
