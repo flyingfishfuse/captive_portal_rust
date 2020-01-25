@@ -1,11 +1,16 @@
 #!/bin/bash/
 # TODO: add option to choose from LIVE_DISK.ISO or debootstrap
-## $PROG Debo0tstrap Chro0t Generat0r v1 
+## $PROG such_a_creative_name_for_something_v1 
 ##    This program makes a complete APT based distro in a folder and moves it to a disk
 ##    Of your choosing OR it can make a network accessible sandbox for you to do whatever in.
-##    DO NOT WALK AWAY FROM THIS PROGRAM OR YOU WILL REGRET IT! A menu pops up and you have to 
+##    
+##    DO NOT WALK AWAY FROM THIS PROGRAM! A menu pops up and you have to 
 ##    Decide what you want to do!
+##
+##    DO NOT FEED BAD DATA TO THE OPTIONS! This script isn't going to save you from your stupidity.
+##
 ## CURRENTLY ONLY 64-BIT BOOTLOADER IS WORKING
+##
 ## Usage: $PROG [OPTION...] [COMMAND]...
 ## Options:
 ##   -u, --user USER          The username to be created                        (Default: moop)
@@ -456,14 +461,16 @@ format_disk(){
     mount_iso_on_temp;
 
     if cp -ar /tmp/live-iso/* /tmp/usb-live; then
-        cecho "[+] "
+        cecho "[+] OS Files Copied!"
     else {
-
+        error_exit "[-] Could Not Copy Files! Check the logfile!" 1>&2 >> $LOGFILE
     }
     fi
+
     # IMPORTANT! This establishes persistance! UNION is a special mounting option 
     # https://unix.stackexchange.com/questions/282393/union-mount-on-linux
     info "Establishing Persistence!"
+    
     if echo "/ union" > /tmp/usb-persistence/persistence.conf; then
         cecho "[+] Union Mount Of Persistence Partition On Root Filesystem Should Work Now!"
     else {
