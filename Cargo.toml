@@ -10,3 +10,8 @@ edition = "2018"
 termcolor = "1.1.0" 
 clap = "2.33.0"
 scoped_threadpool = "0.1.*"
+jsonwebtoken = "6"
+# 0.4.0
+bcrypt = "0.6.1"
+chrono = { version = "0.4.6", features = ["serde"] }
+csrf-token = { git = "ssh://git@github.com/3dom-co-jp/csrf-token.git"}
