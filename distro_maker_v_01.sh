@@ -91,18 +91,18 @@ respositorie()
 }
 device()
 {
-    WANNABE_LIVE_DISK = ""
+    WANNABE_LIVE_DISK=""
 }
 sandbox_only()
 {
-    SANDBOX = 0
+    SANDBOX=0
 }
 filesystem_only()
 {
-	FILESYSTEM = 0
+	FILESYSTEM=0
 }
 create_iso() {
-    MAKE_ISO_opt = 'n'
+    MAKE_ISO_opt='n'
 }
 
 #greps all "##" at the start of a line and displays it in the help text
@@ -151,34 +151,38 @@ yn(){
     }
     fi
 }
+
+# make sure they put "y" or "n"
 analyze_yes_no_opts(){
 ###### ISO CREATION ################################################
     if $(yn) $MAKE_ISO_opt == "n" ; then
-        MAKE_ISO = 0
+        MAKE_ISO=0
+        echo "not working yet"
     elif $(yn) $MAKE_ISO_opt == "y" ; then
-        MAKE_ISO = 1
+        MAKE_ISO=1
+        echo "not working yet"
     else {
-        error_exit " That wasn't a 'y' or 'n' in those boolean options"
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for ISO"
     }
     fi
     
  ###### SANDBOX ONLY ###################################################   
     if $(yn) $SANDBOX == "n" ; then
-        ONLY_SANDBOX = 0    
+        ONLY_SANDBOX=0    
     elif $(yn) $SANDBOX == "y" ; then
-        ONLY_SANDBOX = 1
+        ONLY_SANDBOX=1
     else {
-        error_exit " That wasn't a 'y' or 'n' in those boolean options"
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for Sandbox"
     }
     fi
-}
+
 ###### FILESYSTEM ONLY ################################################
     if $(yn) $FILESYSTEM == "n" ]; then
-        ONLY_FILESYSTEM = 0
+        ONLY_FILESYSTEM=0
     elif $(yn) $FILESYSTEM == "n" ]; then
-        ONLY_FILESYSTEM = 1
+        ONLY_FILESYSTEM=1
     else {
-        error_exit " That wasn't a 'y' or 'n' in those boolean options"
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for Filesystem"
     }
     fi
 }
@@ -200,17 +204,17 @@ analyze_yes_no_opts(){
 #=========================================================
 #            Colorization stuff
 #=========================================================
-black     = '\E[30;47m'
-red       = '\E[31;47m'
-green     = '\E[32;47m'
-yellow    = '\E[33;47m'
-blue      = '\E[34;47m'
-magenta   = '\E[35;47m'
-cyan      = '\E[36;47m'
-white     = '\E[37;47m'
-info_blue = '\033[1;36m'
-warn_yell = '\033[1;33m'
-fatal_red = '\033[1;31m'
+black     ='\E[30;47m'
+red       ='\E[31;47m'
+green     ='\E[32;47m'
+yellow    ='\E[33;47m'
+blue      ='\E[34;47m'
+magenta   ='\E[35;47m'
+cyan      ='\E[36;47m'
+white     ='\E[37;47m'
+info_blue ='\033[1;36m'
+warn_yell ='\033[1;33m'
+fatal_red ='\033[1;31m'
 
 
 alias Reset="tput sgr0"      #  Reset text attributes to normal
@@ -286,7 +290,7 @@ check_os () {
   elif [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]; then
     fatal "Cannot work on :" "$OS"
   fi
-
+  return 1
 }
 
 deboot_first_stage(){
@@ -652,8 +656,36 @@ establish_network(){
 ############################
 ##--	Menu System		--##
 ############################
+#check if the user is stupid
+analyze_yes_no_opts
+#check again if the user is really serious about all this
 get_permission;
+#holy crap they are going to do it!
+if check_os; then
+  if check_for_space
 
+#use iproute2 for because reasons
+#del_iface1
+del_iface2
+create_disk
+create_iface_ipr1
+create_iface_ipr2
+format_disk
+mount_iso_on_temp
+partition_disk
+
+
+setup_host_networking
+setup_network
+
+deboot_first_stage
+deboot_second_stage
+deboot_third_stage
+
+MAKE_ISO=0
+ONLY_SANDBOX=0
+ONLY_FILESYSTEM=0
+ 
 PS3="Choose your doom"
 select option in sandbox_connect setup_network create_disk quit
 do
