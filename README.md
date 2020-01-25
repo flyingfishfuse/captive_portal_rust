@@ -3,7 +3,7 @@ Im rewriting the captive portal in Rust, seems like a better language for what I
 
 captive portal based in /*c++*/ RUST with an ncurses based command line functionality consisting of several options allowing for implementation of the Beef Framework and Bettercap in your attack... or even legal use, this is going to have an actual (hopefully)  secure authentication implementation using hashing and maybe other methods.
 
-I'm going to use the distro_maker script to create a safe sandbox in the case of a l337_haxX0r trying to play games with the portal
+I'm going to use the distro_maker script to create a safe sandbox in the case of a l337_haxX0r trying to play games with the portal. SANDBOX SCRIPT ALMOST DONE! YAY!
 
 I want to make this work on windows but that is definetely going to happen AFTER I finish way more of this... maybe with rust I don't have to try and it will just turn out that way?
 
