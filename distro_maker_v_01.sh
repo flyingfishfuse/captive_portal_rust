@@ -232,7 +232,7 @@ check_os () {
   if [ "${OS}" = "Linux" ] ; then
     info "You appear to be on the correct OS"
     
-  elif [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin"]; then
+  elif [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]; then
     fatal "Cannot work on :" "$OS"
   fi
 }
@@ -389,8 +389,8 @@ format_disk(){
     
     ## EFI
     info " Creating Fat32 Filesystem For EFI on /dev/{$WANNABE_LIVE_DISK}1"
-    if test -f /dev/{$WANNABE_LIVE_DISK}1; then
-        if mkfs.vfat -n EFI /dev/{$WANNABE_LIVE_DISK}1; then
+    if test -f /dev/${WANNABE_LIVE_DISK}1; then
+        if mkfs.vfat -n EFI /dev/${WANNABE_LIVE_DISK}1; then
             cecho "[+] Created Fat32 Filesystem on EFI Partion " green
         else 
             error_exit "[-] Failed! Check the logfile!" 1>&2 >> $LOGFILE
@@ -398,8 +398,8 @@ format_disk(){
     fi
     ## LIVE disk partition
     info " Creating Fat32 Filesystem on Live Disk Partition"
-    if test -f /dev/{$WANNABE_LIVE_DISK}; then
-        if mkfs.vfat -n LIVE /dev/{$WANNABE_LIVE_DISK}2; then
+    if test -f /dev/${WANNABE_LIVE_DISK}; then
+        if mkfs.vfat -n LIVE /dev/${WANNABE_LIVE_DISK}2; then
             cecho "[+] Created Fat32 Filesystem on Live Disk Partion " green
         else 
             error_exit "[-] Creation of Fat32 Filesystem on Live Disk Partition Failed! Check the logfile!" 1>&2 >> $LOGFILE
@@ -407,9 +407,9 @@ format_disk(){
     fi
 
     ## Persistance Partition
-    if test -f /dev/${$WANNABE_LIVE_DISK}; then
+    if test -f /dev/${WANNABE_LIVE_DISK}; then
         info "Creating Filesystem On Persistance Partition"
-        if mkfs.ext4 -F -L persistence /dev/{$WANNABE_LIVE_DISK}3; then
+        if mkfs.ext4 -F -L persistence /dev/${WANNABE_LIVE_DISK}3; then
             cecho "[+] Created Ext4 Filesystem on Persistance Partion " green
         else 
             error_exit "[-] Creation of Ext4 Filesystem on Persistance Partition Failed! Check the logfile!" 1>&2 >> $LOGFILE
@@ -485,22 +485,22 @@ format_disk(){
     #########################
     ##      64-BIT OS       #
     #########################
-    if [$BIT_SIZE = "32"]    
-        if [$ARCH == "ARM"]
+    if [ $BIT_SIZE = "32" ]    
+        if [ $ARCH == "ARM" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
             if grub-install --removable --target=arm-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
                 cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
 		        error_exit "[-]GRUB2 Install Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	        fi   
-        else if [$ARCH == "X86"]
+        else if [ $ARCH == "X86" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
             if grub-install --removable --target=i386-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK; then
                 cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
 		        error_exit "[-]GRUB2 Install Failed! Check the logfile!" 1>&2 >> $LOGFILE
 	        fi
-        else if [$ARCH == "X64"]
+        else if [ $ARCH == "X64" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
             if grub-install --removable --target=X86_64-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
 	            cecho "[+] GRUB2 Install Finished Successfully!" green
