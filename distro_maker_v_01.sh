@@ -26,8 +26,9 @@
 ##   -d, --device DEVICE      The device to install the Distro to               (Default: NONE THATS DANGEROUS!)
 ##
 ##       Boolean Options : "y" for YES, "n" for NO
-##   -s, --sandbox_only       Only makes the SANDBOX                            (Default: NONE)
-##   -f, --filesystem_only    Only makes the disk and filesystem structure      (Default: NONE)
+##   -s, --sandbox_only       Only makes the SANDBOX                            (Default: n)
+##   -f, --filesystem_only    Only makes the disk and filesystem structure      (Default: n)
+##   -x, --use_an_iso         Use an ISO for Live Disk                          (Default: n)
 ##   -x, --create_iso         Create an ISO from the sandbox                    (Default: n)
 ## 
 ## Commands:
@@ -85,6 +86,8 @@ component()
 {
 	COMPONENTS='main,contrib,universe,multiverse'
 }
+# its mispelled for a reason, that grep at the bottom for the option parser needs work, please help
+# the more code you show me the more I can learn.
 respositorie()
 {
 	REPOSITORY='http://archive.ubuntu.com/ubuntu/'
@@ -95,14 +98,17 @@ device()
 }
 sandbox_only()
 {
-    SANDBOX=0
+    SANDBOX='y'
 }
 filesystem_only()
 {
-	FILESYSTEM=0
+	FILESYSTEM='n'
 }
 create_iso() {
     MAKE_ISO_opt='n'
+}
+use_an_iso(){
+    USE_ISO='n'
 }
 
 #greps all "##" at the start of a line and displays it in the help text
@@ -135,11 +141,46 @@ while [ $# -gt 0 ]; do
     # For example `echo abcde | grep -P 'ab\K..'` will print "de"
     
 # tr - _ substitutes all - for _
+# turns all options to the variable $CMD and sequentially checks then executes
+# if the $CMD doesnt exist, echo command not supported and exit
+# this is why repositorie is mispelled and i am a wierdo so i choose for the options that the user reads 
+# to be the mispelling
   CMD=$(grep -m 1 -Po "^## *$1, --\K[^= ]*|^##.* --\K${1#--}(?:[= ])" ${0} | tr - _)
   if [ -z "$CMD" ]; then echo "ERROR: Command '$1' not supported"; exit 1; fi
   shift; eval "$CMD" $@ || shift $? 2> /dev/null
 done
 
+
+# HOST network interface configuration that connects to SANDBOX
+# In my test this is a Wireless-N Range extender with OpenWRT connected through a Ethernet to USB connector
+HOST_IFACE_NAME='enx000ec6527123'
+INT_IP='192.168.1.161'
+# HOST network interface configuration that connects to Command and Control 
+# This is the desktop workstation you aren't using this script on because its stupid to do that.
+IF_CNC='eth0'
+IF_IP_CNC='192.168.0.44'
+# Internet access for the LAN, This is your internet router.
+GATEWAY='192.168.0.1'
+mount_iso_on_temp() { 
+    
+    info "Mounting Live ISO on /tmp/live-iso"
+    if mount -oro live.iso /tmp/live-iso; then
+        cecho "[+] ISO Successfully Mounted On /tmp/live-iso!"
+    else {
+        error_exit "[-] Could Not Mount ISO! Check the logfile!"
+    }
+    fi
+}
+
+#takes an argument
+check_for_space(){
+    reqSpace=100000000
+    availSpace=$(df "${1}" | awk 'NR==2 { print $4 }')
+    if (( availSpace < reqSpace )); then
+        echo "not enough Space" >&2
+        exit 1
+    fi
+}
 # you better follow directions better or you are going to fuck your shit up
 yn(){
     if ${1} | tr [:upper:] [:lower:] == "n" ; then
@@ -147,13 +188,24 @@ yn(){
     elif ${1} | tr [:upper:] [:lower:] == "y" ; then
         echo "y"
     else {
-        error_exit "Something Strange happened in the menu option parsing! Check the Logfile!!"
+        error_exit "Something Strange happened with a yes no option! Check the Logfile!!"
     }
     fi
 }
 
 # make sure they put "y" or "n"
 analyze_yes_no_opts(){
+
+###### ISO USE #####################################################        
+    #Mounts the ISO file if an ISO is used
+    if $(yn) $USE_ISO == 'n' ; then
+        info "Not Using An ISO"
+    elif $(yn) $USE_ISO == 'y' : then
+        cecho " Mounting ISO file in /tmp" green ""
+        mount_iso_on_temp;
+    else 
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for Using an ISO"
+    fi
 ###### ISO CREATION ################################################
     if $(yn) $MAKE_ISO_opt == "n" ; then
         MAKE_ISO=0
@@ -161,9 +213,8 @@ analyze_yes_no_opts(){
     elif $(yn) $MAKE_ISO_opt == "y" ; then
         MAKE_ISO=1
         echo "not working yet"
-    else {
-        error_exit " That wasn't a 'y' or 'n' in those boolean options for ISO"
-    }
+    else
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for Creating an ISO"
     fi
     
  ###### SANDBOX ONLY ###################################################   
@@ -171,9 +222,8 @@ analyze_yes_no_opts(){
         ONLY_SANDBOX=0    
     elif $(yn) $SANDBOX == "y" ; then
         ONLY_SANDBOX=1
-    else {
+    else 
         error_exit " That wasn't a 'y' or 'n' in those boolean options for Sandbox"
-    }
     fi
 
 ###### FILESYSTEM ONLY ################################################
@@ -181,9 +231,8 @@ analyze_yes_no_opts(){
         ONLY_FILESYSTEM=0
     elif $(yn) $FILESYSTEM == "n" ]; then
         ONLY_FILESYSTEM=1
-    else {
+    else 
         error_exit " That wasn't a 'y' or 'n' in those boolean options for Filesystem"
-    }
     fi
 }
 
@@ -204,14 +253,14 @@ analyze_yes_no_opts(){
 #=========================================================
 #            Colorization stuff
 #=========================================================
-black     ='\E[30;47m'
-red       ='\E[31;47m'
-green     ='\E[32;47m'
-yellow    ='\E[33;47m'
-blue      ='\E[34;47m'
-magenta   ='\E[35;47m'
-cyan      ='\E[36;47m'
-white     ='\E[37;47m'
+black='\E[30;47m'
+red='\E[31;47m'
+green='\E[32;47m'
+yellow='\E[33;47m'
+blue='\E[34;47m'
+magenta='\E[35;47m'
+cyan='\E[36;47m'
+white='\E[37;47m'
 info_blue ='\033[1;36m'
 warn_yell ='\033[1;33m'
 fatal_red ='\033[1;31m'
@@ -225,12 +274,12 @@ cecho (){
 	local default_msg="No message passed."
     # Doesn't really need to be a local variable.
 	# Message is first argument OR default
-	message   = ${1:-$default_msg}
+	message=${1:-$default_msg}
 	# olor is second argument OR white
-	color     = ${2:$white}
+	color=${2:$white}
 	# extra message field in case you want uncolored stuff after the colored stuff
-	last_word = ${3:''}
-	if [ $color = 'lolz' ]
+	last_word=${3:''}
+	if [ $color='lolz' ]
 	then
 		echo $message | lolcat
 		return
@@ -249,20 +298,6 @@ info()  { cecho "[INFO]" info_blue " $*"; }
 warn()  { cecho "[WARNING]" warn_yello "$*"; }
 fatal() { cecho "[FATAL] " fatal_red " $*" ; exit 1 ; }
 
-echo "======================================================================="
-echo "=================" cecho "--Debo0tstrap Chro0t Generat0r--" blue; echo "======================"
-echo "======================================================================="
-echo "==="
-# HOST network interface configuration that connects to SANDBOX
-# In my test this is a Wireless-N Range extender with OpenWRT connected through a Ethernet to USB connector
-HOST_IFACE_NAME='enx000ec6527123'
-INT_IP='192.168.1.161'
-# HOST network interface configuration that connects to Command and Control 
-# This is the desktop workstation you aren't using this script on because its stupid to do that.
-IF_CNC='eth0'
-IF_IP_CNC='192.168.0.44'
-# Internet access for the LAN, This is your internet router.
-GATEWAY='192.168.0.1'
 error_exit(){
 	cecho "$1" red "" 1>&2 >> $LOGFILE
 	exit 1
@@ -286,8 +321,7 @@ check_os () {
   info "Operating System: $OS"
   if [ "${OS}" = "Linux" ] ; then
     info "You appear to be on the correct OS"
-    
-  elif [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]; then
+  else [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]; then
     fatal "Cannot work on :" "$OS"
   fi
   return 1
@@ -296,10 +330,10 @@ check_os () {
 deboot_first_stage(){
 ##### Sequential commands with error checking ##########################################################################
 	cecho "[+] Beginning Debootstrap" yellow
-	if sudo debootstrap --components $COMPONENTS --arch $ARCH bionic $SANDBOX $REPOSITORY >> $LOGFILE; then
+	if sudo debootstrap --components $COMPONENTS --arch $ARCH bionic $SANDBOX $REPOSITORY; then
 	    cecho "[+] Debootstrap Finished Successfully!" green
 	else
-		error_exit "[-]Debootstrap Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Debootstrap Failed! Check the logfile!" 
 	fi
 
 ##### resolv.conf copy #################################################################################################
@@ -307,7 +341,7 @@ deboot_first_stage(){
 	if sudo cp /etc/resolv.conf $SANDBOX/etc/resolv.conf; then
 	    cecho "[+] Resolv.conf copied!" green 
 	else
-		error_exit "[-]Copy Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Copy Failed! Check the logfile!" 
 	fi
 
 ##### sources.list copy ################################################################################################
@@ -315,7 +349,7 @@ deboot_first_stage(){
 	if sudo cp /etc/apt/sources.list $SANDBOX/etc/apt/; then
 	    cecho "[+] Sources.list copied!" green 
 	else
-		error_exit "[-]Copy Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Copy Failed! Check the logfile!"
 	fi
 
 ##### Mount and bind the proper volumes ##################################################################################
@@ -324,21 +358,21 @@ deboot_first_stage(){
 	if sudo mount -o bind /dev $SANDBOX/dev; then
 	    cecho "[+] Mounted!" green 
 	else
-		error_exit "[-]Mount Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Mount Failed! Check the logfile!"
 	fi
 ############### /proc ###############
     cecho "[+] Mounting /proc" yellow
 	if sudo mount -o bind -t proc /proc $SANDBOX/proc; then
 	    cecho "[+] Mounted!" green 
 	else
-		error_exit "[-]Mount Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Mount Failed! Check the logfile!"
 	fi
 ############# /sys ###############
     cecho "[+] Mounting /dev" yellow
 	if sudo mount -o bind -t sys /sys $SANDBOX/sys; then
 	    cecho "[+] Mounted!" green 
 	else
-		error_exit "[-]Mount Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Mount Failed! Check the logfile!"
 	fi
 }
 ############################### Finish setting up the basic system #########################################################
@@ -365,16 +399,6 @@ deboot_third_stage()
 
 }
 
-#takes an argument
-check_for_space(){
-    
-    reqSpace=100000000
-    availSpace=$(df "${1}" | awk 'NR==2 { print $4 }')
-    if (( availSpace < reqSpace )); then
-        echo "not enough Space" >&2
-        exit 1
-    fi
-}
 ####################################################################################################################
 # TOFOMOFO: check for disk space and throw a warning if needed                                                     #
 partition_disk() {                                                                                                 #
@@ -386,7 +410,7 @@ partition_disk() {                                                              
     if parted /dev/$WANNABE_LIVE_DISK --script mkpart EFI fat16 1MiB 100MiB; then
         cecho "[+] EFI Partition Created!" green
     else
-		error_exit "[-]Partitioning EFI Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Partitioning EFI Failed! Check the logfile!"
 	fi
 
 ##### LIVE disk partition ##########################################################################################
@@ -394,7 +418,7 @@ partition_disk() {                                                              
     if parted /dev/$WANNABE_LIVE_DISK --script mkpart live fat16 100MiB 3GiB; then
         cecho "[+] Live Disk Partition Created!" green
     else
-		error_exit "[-]Partitioning Live Disk Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Partitioning Live Disk Failed! Check the logfile!"
 	fi
 
 ##### Persistance Partition ########################################################################################
@@ -402,7 +426,7 @@ partition_disk() {                                                              
     if parted /dev/$WANNABE_LIVE_DISK --script mkpart persistence ext4 3GiB 100% ; then
         cecho "[+] Persistance Partition Created!" green
     else
-		error_exit "[-]Partitioning Persistance Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]Partitioning Persistance Failed! Check the logfile!"
 	fi
 
 ##### Sets filesystem flag #########################################################################################
@@ -410,7 +434,7 @@ partition_disk() {                                                              
     if parted /dev/$WANNABE_LIVE_DISK --script set 1 msftdata on; then
         cecho "[+] MSFTdata Flag Set on EFI Partition!" green
     else
-		error_exit "[-] MSFTdata Flag Setting On EFI Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-] MSFTdata Flag Setting On EFI Failed! Check the logfile!"
 	fi
 
 ##### Sets boot flag for legacy (NON-EFI) BIOS ######################################################################
@@ -418,7 +442,7 @@ partition_disk() {                                                              
     if parted /dev/$WANNABE_LIVE_DISK --script set 2 legacy_boot on; then
         cecho "[+] Legacy Boot Flag Set on Live Disk Partition!" green
     else
-		error_exit "[-]NON-EFI Boot Sector Flag Setting On Live Disk Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]NON-EFI Boot Sector Flag Setting On Live Disk Failed! Check the logfile!"
 	fi
  
  ##### Sets msftdata flag ############################################################################################
@@ -426,42 +450,39 @@ partition_disk() {                                                              
     if parted /dev/$WANNABE_LIVE_DISK --script set 2 msftdata on; then
         cecho "[+] MSFTdata Flag Set on Live Disk Partition!" green
     else
-		error_exit "[-]MSFTdata Flag Setting On Live Disk Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		error_exit "[-]MSFTdata Flag Setting On Live Disk Failed! Check the logfile!"
 	fi
 }
 
-mount_iso_on_temp() { 
-    
-    info "Mounting Live ISO on /tmp/live-iso"
-    if mount -oro live.iso /tmp/live-iso; then
-        cecho "[+] ISO Successfully Mounted On /tmp/live-iso!"
-    else {
-        error_exit "[-] Could Not Mount ISO! Check the logfile!" 1>&2 >> $LOGFILE
-    }
-    fi
-}
 
 format_disk(){
 # Here we make the filesystems for the OS to live on
-    
+
+#########################################################################################################################################    
+
     ## EFI
     info " Creating Fat32 Filesystem For EFI on /dev/{$WANNABE_LIVE_DISK}1"
     if test -f /dev/${WANNABE_LIVE_DISK}1; then
         if mkfs.vfat -n EFI /dev/${WANNABE_LIVE_DISK}1; then
             cecho "[+] Created Fat32 Filesystem on EFI Partion " green
         else 
-            error_exit "[-] Failed! Check the logfile!" 1>&2 >> $LOGFILE
+            error_exit "[-] Failed! Check the logfile!"
         fi
     fi
+
+#########################################################################################################################################    
+
     ## LIVE disk partition
     info " Creating Fat32 Filesystem on Live Disk Partition"
     if test -f /dev/${WANNABE_LIVE_DISK}; then
         if mkfs.vfat -n LIVE /dev/${WANNABE_LIVE_DISK}2; then
             cecho "[+] Created Fat32 Filesystem on Live Disk Partion " green
         else 
-            error_exit "[-] Creation of Fat32 Filesystem on Live Disk Partition Failed! Check the logfile!" 1>&2 >> $LOGFILE
+            error_exit "[-] Creation of Fat32 Filesystem on Live Disk Partition Failed! Check the logfile!"
         fi
     fi
+
+#########################################################################################################################################    
 
     ## Persistance Partition
     if test -f /dev/${WANNABE_LIVE_DISK}; then
@@ -469,19 +490,23 @@ format_disk(){
         if mkfs.ext4 -F -L persistence /dev/${WANNABE_LIVE_DISK}3; then
             cecho "[+] Created Ext4 Filesystem on Persistance Partion " green
         else 
-            error_exit "[-] Creation of Ext4 Filesystem on Persistance Partition Failed! Check the logfile!" 1>&2 >> $LOGFILE
+            error_exit "[-] Creation of Ext4 Filesystem on Persistance Partition Failed! Check the logfile!"
         fi
     fi
-    
+
+#########################################################################################################################################    
+
     # Creating Temporary work directories
     info "[+] Creating Temporary Work Directories"
     
     if mkdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
         cecho "[+] Created Folders In /tmp" green
     else {
-        error_exit "[-] Could Not Create Folders in /tmp ! Check the logfile!" 1>&2 >> $LOGFILE
+        error_exit "[-] Could Not Create Folders in /tmp ! Check the logfile!"
     }
     fi
+
+#########################################################################################################################################    
     
     # Mounting those directories on the newly created filesystem
     info "Mounting /tmp/usb-efi/ On dev/${WANNABE_LIVE_DISK}1"
@@ -489,40 +514,65 @@ format_disk(){
     if mount /dev/${WANNABE_LIVE_DISK}1 /tmp/usb-efi; then
         cecho "[+] Mounted Sucessfully!" green
     else {
-        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!" 1>&2 >> $LOGFILE
+        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!"
     }    
     fi
-    
+
+#########################################################################################################################################    
+
     #mount Live Partition
     info "Mounting /tmp/usb-live/ On dev/${WANNABE_LIVE_DISK}2"
     
     if mount /dev/${WANNABE_LIVE_DISK}2 /tmp/usb-live; then
         cecho "[+] Mounted Sucessfully!" green
     else {
-        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!" 1>&2 >> $LOGFILE
+        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!"
     }
     fi
+
+#########################################################################################################################################    
 
     info "Mounting /tmp/usb-persistence/ On dev/${WANNABE_LIVE_DISK}3"
     
     if mount /dev/${WANNABE_LIVE_DISK}3 /tmp/usb-persistence; then
         cecho "[+] Mounted Sucessfully!" green
     else {
-        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!" 1>&2 >> $LOGFILE
+        error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!"
     }
     # Mount the ISO on a temp folder to get the files moved
     
     fi
 
-    #Mounts the ISO file if an ISO is used
-    mount_iso_on_temp;
+#########################################################################################################################################    
 
-    if cp -ar /tmp/live-iso/* /tmp/usb-live; then
+
+
+#########################################################################################################################################    
+
+    ## rsync --verbose --recursive --specials --executability ---perms --relative --safe-links --xattrs --owner --group --preallocate --dry-run --progress --human-readable
+    
+    if rsync --verbose \
+    --recursive \
+    --specials \
+    --executability \
+    ---perms \
+    --relative \
+    --safe-links \
+    --xattrs \
+    --owner \
+    --group \
+    --preallocate \
+    --dry-run \
+    --progress \
+    --human-readable \
+    /tmp/live-iso/* /tmp/usb-live; then
         cecho "[+] OS Files Copied!"
     else {
-        error_exit "[-] Could Not Copy Files! Check the logfile!" 1>&2 >> $LOGFILE
+        error_exit "[-] Could Not Copy Files! Check the logfile!"
     }
     fi
+
+#########################################################################################################################################    
 
     # IMPORTANT! This establishes persistance! UNION is a special mounting option 
     # https://unix.stackexchange.com/questions/282393/union-mount-on-linux
@@ -531,9 +581,10 @@ format_disk(){
     if echo "/ union" > /tmp/usb-persistence/persistence.conf; then
         cecho "[+] Union Mount Of Persistence Partition On Root Filesystem Should Work Now!"
     else {
-        error_exit "[-] Could Not Establish Persistence! Check the logfile!" 1>&2 >> $LOGFILE
+        error_exit "[-] Could Not Establish Persistence! Check the logfile!"
     }
     fi
+#########################################################################################################################################    
 
     # Install GRUB2
     # https://en.wikipedia.org/wiki/GNU_GRUB
@@ -549,46 +600,111 @@ format_disk(){
             if grub-install --removable --target=arm-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
                 cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
-		        error_exit "[-]GRUB2 Install Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		        error_exit "[-]GRUB2 Install Failed! Check the logfile!"
 	        fi   
         elif [ $ARCH == "X86" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
             if grub-install --removable --target=i386-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK; then
                 cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
-		        error_exit "[-]GRUB2 Install Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		        error_exit "[-]GRUB2 Install Failed! Check the logfile!"
 	        fi
         elif [ $ARCH == "X64" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
             if grub-install --removable --target=X86_64-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
 	            cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
-		        error_exit "[-]GRUB2 Install Failed! Check the logfile!" 1>&2 >> $LOGFILE
+		        error_exit "[-]GRUB2 Install Failed! Check the logfile!"
 	        fi
         else
-            cecho "Something WIERD happened, Throw a banana and try again!"
+            cecho "Something WIERD happened, Throw a banana and try again!" yellow "";
         fi
     fi
-    # Copy the MBR for syslinux booting of LIVE disk
-    dd bs=440 count=1 conv=notrunc if=/usr/lib/syslinux/mbr/gptmbr.bin of=/dev/sdX
+
+#########################################################################################################################################    
     
+    info "Copying MBR for syslinux booting of LIVE disk"
+    dd bs=440 count=1 conv=notrunc if=/usr/lib/syslinux/mbr/gptmbr.bin of=/dev/sdX
+
+#########################################################################################################################################    
+
     # Install Syslinux
     # https://wiki.syslinux.org/wiki/index.php?title=HowTos
-    syslinux --install /dev/${WANNABE_LIVE_DISK}2
-    mv /tmp/usb-live/isolinux /tmp/usb-live/syslinux
-    mv /tmp/usb-live/syslinux/isolinux.bin /tmp/usb-live/syslinux/syslinux.bin
-    mv /tmp/usb-live/syslinux/isolinux.cfg /tmp/usb-live/syslinux/syslinux.cfg
+    info "Installing SysLinux on Live Disk"
+    if syslinux --install /dev/${WANNABE_LIVE_DISK}2; then
+        cecho "[+] Syslinux installed on ${WANNABE_LIVE_DISK} !" green ""
+        if mv /tmp/usb-live/isolinux /tmp/usb-live/syslinux; then
+            cecho "[+] Isolinux Changed to Syslinux!" green ""
+        else 
+            error_exit "[-] ERROR WHILE INSTALLING SYSLINUX: Check the logfile!"
+        fi
+        
+        if mv /tmp/usb-live/syslinux/isolinux.bin /tmp/usb-live/syslinux/syslinux.bin; then
+            cecho "[+] Isolinux.bin Changed to syslinux.bin!" green ""
+        else 
+            error_exit "[-] ERROR WHILE INSTALLING SYSLINUX: Check the logfile!"
+        fi
+        
+        if mv /tmp/usb-live/syslinux/isolinux.cfg /tmp/usb-live/syslinux/syslinux.cfg; then
+            cecho "[+] Isolinux configuration Changed to Syslinux!" green ""
+        else 
+            error_exit "[-] ERROR WHILE INSTALLING SYSLINUX: Check the logfile!"
+        fi
+    fi
+#########################################################################################################################################    
 
+    info "Finishing Syslinux Install"
     # Magic, sets up syslinux configuration and layouts 
-    sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg
-    sed --in-place '0,/boot=live/{s/\(boot=live .*\)$/\1 persistence/}' /tmp/usb-live/boot/grub/grub.cfg /tmp/usb-live/syslinux/menu.cfg
-    sed --in-place '0,/boot=live/{s/\(boot=live .*\)$/\1 keyboard-layouts=en locales=en_US/}' /tmp/usb-live/boot/grub/grub.cfg /tmp/usb-live/syslinux/menu.cfg
-    sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg
-    
+    if sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg; then
+        cecho "[+] Grub.cgf modified!" green ""
+    else
+        error_exit "[-] Could not edit Grub.cgf! Check the logfile!"
+    fi
+
+#########################################################################################################################################    
+
+    if sed --in-place '0,/boot=live/{s/\(boot=live .*\)$/\1 persistence/}' /tmp/usb-live/boot/grub/grub.cfg /tmp/usb-live/syslinux/menu.cfg; then
+        cecho "[+] File modified!" green ""
+    else
+        error_exit "[-] Could Not Edit File For Persistance! Check the logfile!"
+    fi
+
+#########################################################################################################################################    
+
+    if sed --in-place '0,/boot=live/{s/\(boot=live .*\)$/\1 keyboard-layouts=en locales=en_US/}' /tmp/usb-live/boot/grub/grub.cfg /tmp/usb-live/syslinux/menu.cfg; then
+        cecho "[+] Locales Have Been Set!" green ""
+    else
+        error_exit "[-] Could Not Set Locales! Check the logfile!"
+    fi
+
+#########################################################################################################################################    
+
+    if sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg; then
+        cecho "[+] !" green ""
+    else
+        error_exit "[-] Could not edit file! Check the logfile!"
+    fi
+
+#########################################################################################################################################    
+
+    info "... Cleaning up"
     # Clean up!
-    umount /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso
-    rmdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso
+    if umount /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
+        cecho "[+] Temporary Folders Unmounted!"
+    else
+        warn "Could Not Unmount Temporary Folders!!"
+    fi
+    if rmdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
+        cecho "[+] Temporary Folders Deleted!" green ""
+    else
+        warn "Could Not Delete Temporary Folders!!"
+    fi
+
 }
+
+
+#########################################################################################################################################    
+
 
 # finish this you doo doo head
 verify_live_iso(){
@@ -654,6 +770,11 @@ establish_network(){
 	# 23. Prevent DoS attack;
 	iptables -A INPUT -p tcp --dport 80 -m limit --limit 25/minute --limit-burst 100 -j ACCEPT
 }
+
+echo "======================================================================="
+echo "=================" cecho "--Debo0tstrap Chro0t Generat0r--" blue ""; echo "======================"
+echo "======================================================================="
+
 ############################
 ##--	Menu System		--##
 ############################
@@ -662,9 +783,30 @@ analyze_yes_no_opts
 #check again if the user is really serious about all this
 get_permission;
 #holy crap they are going to do it!
-if check_os; then
-  if check_for_space
+if ! which syslinux > /dev/null; then
+   echo -e "syslinux not found! Install? (y/n) (You kinda need it for this whole process)"
+   read
+   if $(yn) == 'y'; then
+        echo $(sudo apt-get install syslinux syslinux-efi)
+   else 
+        fatal "You obviously don't want to run this script any further!"
+   fi
+fi
 
+if [ MAKE_ISO == 0 || 1 ]; then
+    warn "Iso Creation not supported yet"
+
+ONLY_SANDBOX=0
+ONLY_FILESYSTEM=0
+if check_os; then
+    if check_for_space; then
+
+
+
+
+
+
+fi
 #use iproute2 for because reasons
 #del_iface1
 del_iface2
@@ -683,20 +825,16 @@ deboot_first_stage
 deboot_second_stage
 deboot_third_stage
 
-MAKE_ISO=0
-ONLY_SANDBOX=0
-ONLY_FILESYSTEM=0
+
  
 PS3="Choose your doom"
-select option in sandbox_connect setup_network create_disk quit
+select option in sandbox_connect setup_network quit
 do
 	case $option in
     	sandbox_connect) 
 			connect_sandbox;;
         setup_network) 
             establish_network;;
-        create_disk)
-            setup_disk;;
         quit)
         	break;;
         *)
