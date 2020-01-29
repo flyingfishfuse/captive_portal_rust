@@ -159,11 +159,12 @@ IF_IP_CNC='192.168.0.44'
 GATEWAY='192.168.0.1'
 mount_iso_on_temp() {    
     info "Mounting Live ISO on /tmp/live-iso"
-    if mount -oro live.iso /tmp/live-iso; then
-        cecho "[+] ISO Successfully Mounted On /tmp/live-iso!"
-    else {
-        error_exit "[-] Could Not Mount ISO! Check the logfile!"
-    }
+    if [ -f /tmp/live-iso/ ]; then
+        if mount -oro $ISO_LOCATION /tmp/live-iso; then
+            cecho "[+] ISO Successfully Mounted On /tmp/live-iso!"
+        else
+            error_exit "[-] Could Not Mount ISO! Check the logfile!"
+        fi
     fi
 }
 #takes an argument
@@ -224,19 +225,6 @@ analyze_yes_no_opts(){
         error_exit " That wasn't a 'y' or 'n' in those boolean options for Filesystem"
     fi
 }
-######################################################################
-#
-#      if command_exists whatever${SUFX}
-#      then
-#        whateverSUFFIX=${SUFX}
-#        break
-#      fi
-#    done
-#
-#
-#
-#
-#
 #=========================================================
 #            Colorization stuff
 #=========================================================
@@ -351,8 +339,8 @@ deboot_first_stage(){
 }
 ############################### Finish setting up the basic system #########################################################
 deboot_second_stage(){
-	sudo chroot $SANDBOX
-	useradd $USER 
+	sudo -S chroot $SANDBOX
+	sudo -S useradd $USER 
 	passwd  $USER
 	login $USER
 	sudo -S apt-get update
@@ -595,8 +583,7 @@ format_disk(){
     else
         error_exit "[-] Could Not Set Locales! Check the logfile!"
     fi
-#########################################################################################################################################    
-
+#########################################################################################################################################
     if sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg; then
         cecho "[+] !" green ""
     else
@@ -708,8 +695,11 @@ if [ MAKE_ISO == 1 ]; then
 fi
 if [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 1]; then
     error_exit "Cannot do --sandbox_only AND --filesystem_only "
+
 #### Only make filesystem
 elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 1]; then
+    format_disk
+    partition_disk
 #### only make sandbox
 elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0]; then
     cecho " Thank you for riding the OS_Express, please stay in your seat and follow the prompts"
@@ -720,6 +710,7 @@ elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0]; then
             deboot_first_stage
             deboot_second_stage
             deboot_third_stage
+
 #### They want BOTH! YEAH!
 elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 0]; then
     cecho " Thank you for riding the OS_Express, please stay in your seat and follow the prompts"
@@ -730,6 +721,8 @@ elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 0]; then
             deboot_first_stage
             deboot_second_stage
             deboot_third_stage
+            format_disk
+            partition_disk
         fi
     fi
 
