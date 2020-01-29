@@ -1,4 +1,4 @@
-#!/bin/bash/
+#!/bin/bash
 # TODO: add option to choose from LIVE_DISK.ISO or debootstrap
 ## $PROG such_a_creative_name_for_something_v1 
 ##    This program makes a complete APT based distro in a folder and moves it to a disk
@@ -158,9 +158,9 @@ while [ $# -gt 0 ]; do
 # if the $CMD doesnt exist, echo command not supported and exit
 # this is why repositorie is mispelled and i am a wierdo so i choose for the options that the user reads 
 # to be the mispelling
-  CMD=$(grep -m 1 -Po "^## *$1, --\K[^= ]*|^##.* --\K${1#--}(?:[= ])" ${0} | tr - _)
+  CMD=$(grep -m 1 -Po "^## *$1, --\K[^= ]*|^##.* --\K${1#--}(?:[= ])" "${0}" | tr - _)
   if [ -z "$CMD" ]; then echo "ERROR: Command '$1' not supported"; exit 1; fi
-  shift; eval "$CMD" $@ || shift $? 2> /dev/null
+  shift; eval "$CMD" "$@" || shift $? 2> /dev/null
 done
 #################################################################################
 #
@@ -169,13 +169,13 @@ done
 # HOST network interface configuration that connects to SANDBOX
 # In my test this is a Wireless-N Range extender with OpenWRT connected through a Ethernet to USB connector
 HOST_IFACE_NAME='enx000ec6527123'
-INT_IP='192.168.1.161'
+#INT_IP='192.168.1.161'
 # HOST network interface configuration that connects to Command and Control 
 # This is the desktop workstation you aren't using this script on because its stupid to do that.
-IF_CNC='eth0'
-IF_IP_CNC='192.168.0.44'
+#IF_CNC='eth0'
+#IF_IP_CNC='192.168.0.44'
 # Internet access for the LAN, This is your internet router.
-GATEWAY='192.168.0.1'
+#GATEWAY='192.168.0.1'
 SANDBOX_HOSTNAME="IDontReadBeforeExecuting"
 # make it a little less than 16 Gb so we can use shitty USB sticks en masse
 reqSpace=16000000 
@@ -204,7 +204,7 @@ make_disk_bootable() {
 #takes an argument
 check_for_space(){
     availSpace=$(df "${1}" | awk 'NR==2 { print $4 }')
-    if (( availSpace < $reqSpace )); then
+    if (( availSpace < reqSpace )); then
         echo "not enough Space" >&2
         exit 1
     fi
@@ -376,15 +376,24 @@ deboot_second_stage(){
     cecho "Please set the ROOT PASSWORD" blue ""
     wait 3
     passwd root
-    cecho "[+] Adding USER $USER" yellow ""
-	useradd $USER 
-    cecho "Please set the USER PASSWORD" blue ""
-    wait 3
-    passwd $USER
+    info "[+] Adding USER $USER"
+    wait 2
+	if useradd $USER ; then
+        cecho "[+] User $USER Added!"
+    else 
+        error_exit "[-] Could Not Add User $USER! Check The Logfile!"
+    fi
+    info "Setting Password for User $USER"
+    wait 2
+    if echo $PASSWORD | passwd --stdin $USER; then
+        cecho "[+] Password Set!"
+    else 
+        error_exit "[-] Could Not Set Password! Check the Logfile!"
+    fi
     cecho "Please add the new user to /etc/sudoers" blue ""
 	wait 3
     nano /etc/sudoers
-    cecho "[+] Logging In As $USER" yellow ""
+    info "Logging In As $USER"
     wait 2
     login $USER
     cecho "[+] Beginning Package Installation" yellow ""
@@ -728,8 +737,8 @@ get_permission;
 #holy crap they are going to do it!
 if ! which syslinux > /dev/null; then
    echo -e "syslinux not found! Install? (y/n) (You kinda need it for this whole process)"
-   read
-   if $(yn) == 'y'; then
+   DECISION = read
+   if $(yn) $DECISION == 'y'; then
         echo $(sudo apt-get install syslinux)
    else 
         fatal "You obviously don't want to run this script any further!"
@@ -737,15 +746,15 @@ if ! which syslinux > /dev/null; then
 fi
 ##### PARSE BOOLEAN OPTIONS #######
 #user done goofed
-if [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 1 ]; then
+if [ $ONLY_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 1 ]; then
     error_exit "Cannot do --sandbox_only AND --filesystem_only "
 #### Only make filesystem
 #user done didnt goofed
-elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 1 ]; then
+elif [ $ONLY_SANDBOX -eq 0  ] && [ $ONLY_FILESYSTEM -eq 1 ]; then
     format_disk
     partition_disk
 #### only make sandbox
-elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0 ]; then
+elif [ $ONLY_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 0 ]; then
     cecho " Thank you for riding the OS_Express, please stay in your seat and follow the prompts"
     # correct OS
     if check_os; then
@@ -753,12 +762,12 @@ elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0 ]; then
         if check_for_space $WANNABE_LIVE_DISK; then
     # Check if they want to make or use an ISO
     # they want to use an iso        
-            if [ USE_ISO == 1 && MAKE_ISO == 0 ];then
+            if [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 0 ];then
                 mount_iso_on_temp
                 extract_iso_to_disk
                 make_disk_bootable
     # they want to make an iso
-            elif [ USE_ISO == 0 && MAKE_ISO == 1 ]
+            elif [ $USE_ISO -eq 0 ] && [ $MAKE_ISO -eq 1 ]; then
                 deboot_first_stage
                 deboot_second_stage
                 deboot_third_stage
@@ -769,7 +778,7 @@ elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0 ]; then
     #
     # NETWORKED SANDBOX, MAIN PURPOSE FOR THIS SCRIPT
     # EVERYTHING ELSE IS TO SUPPORT THIS ONE FUNCTION
-            elif [ USE_ISO == 0 && MAKE_ISO == 0 ]
+            elif [ $USE_ISO -eq 0 ] && [ MAKE_ISO -eq 0 ]; then
                 deboot_first_stage
                 deboot_second_stage
                 deboot_third_stage
@@ -778,7 +787,7 @@ elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0 ]; then
                 setup_network                
     # They want to use an iso, modify it and repack it into an iso
     # OTHER OTHER MAIN FUNCTION FOR THIS SCRIPT
-            elif [ USE_ISO == 1 && MAKE_ISO == 1 ]
+            elif [ USE_ISO -eq 1 ] && [ MAKE_ISO -eq 1 ]; then
                 error_exit "Currently Using and Generating an ISO together is not supported, wait for version 2"
                 mount_iso_on_temp
                 extract_iso
@@ -789,11 +798,15 @@ elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0 ]; then
             else 
                 error_exit "Something REALLY strange happened! Check the Logfile!"                
             fi
+        else 
+            error_exit "Something REALLY strange happened! Check the Logfile!"                
         fi
+    else 
+        error_exit "Something REALLY strange happened! Check the Logfile!"                
     fi
 #### They want BOTH! YEAH!
 # OTHER MAIN FUNCTION FOR THIS SCRIPT
-elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 0 ]; then
+elif [ ONLY_SANDBOX -eq 0 ] && [ ONLY_FILESYSTEM -eq 0 ]; then
     cecho " Thank you for riding the OS_Express, please stay in your seat and follow the prompts"
     # correct OS
     if check_os; then
@@ -808,7 +821,7 @@ elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 0 ]; then
     fi
 
 else 
-
+        cecho "oops" blue ""
 fi
 del_iface1
 del_iface2
