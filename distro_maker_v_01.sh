@@ -13,7 +13,7 @@
 ##
 ## Usage: $PROG [OPTION...] [COMMAND]...
 ## Options:
-##   -u, --user USER          The username to be created                        (Default: moop)
+##   -u, --new_user USER      The username to be created                        (Default: moop)
 ##   -p, --password PASS      The password to said username                     (Default: password)
 ##   -e, --extra LIST         Space seperated list of extra packages to install (Default: micro)
 ##   -m, --smacaddress MAC    MAC Address of the Sandbox                        (Default: de:ad:be:ef:ca:fe)
@@ -24,19 +24,31 @@
 ##   -c, --compenent COMPO    Which repository components are included          (Default: main,contrib,universe,multiverse)
 ##   -r, --repositorie REPO   The Debian-based repository. E.g. "Ubuntu"        (Default: http://archive.ubuntu.com/ubuntu/)
 ##   -d, --device DEVICE      The device to install the Distro to               (Default: NONE THATS DANGEROUS!)
+##   -w, --iso_path PATH      Path to the iso if you are supplying one          (Default: ./live.iso)
+##
 ##
 ##       Boolean Options : "y" for YES, "n" for NO
 ##   -s, --sandbox_only       Only makes the SANDBOX                            (Default: n)
 ##   -f, --filesystem_only    Only makes the disk and filesystem structure      (Default: n)
 ##   -x, --use_an_iso         Use an ISO for Live Disk                          (Default: n)
-##   -x, --create_iso         Create an ISO from the sandbox                    (Default: n)
+##   -y, --create_iso         Create an ISO from the sandbox                    (Default: n)
 ## 
 ## Commands:
 ##   -h, --help             Displays this help and exists <-- no existential crisis here!
 ##   -v, --version          Displays output version and exits
 ## Examples:
-##   $PROG -i myscrip-simple.sh > myscript-full.sh
-##   $PROG -r myscrip-full.sh   > myscript-simple.sh
+##   Make everything and install it to a disk
+##   $PROG --user moop --password password --extra micro syslinux terminator fluxbox --device /dev/sdd
+##
+##   Make just a sandbox in ~/sandbox and generate an ISO for transport
+##   $PROG --user moop --password password --extra micro syslinux terminator fluxbox --sandbox_only --create_iso --iso_path NEW_SANDBOX.iso
+##
+##   Make just a sandbox from an ISO
+##   $PROG --user moop --password password --extra micro syslinux terminator fluxbox --use_an_iso --iso_path LIVE_DISK.iso --sandbox_only
+##
+##   $PROG --user moop --password password --extra micro syslinux terminator fluxbox --create_iso --iso_path NEW_SANDBOX.iso --sandbox_only
+##   $PROG --user moop --password password --extra micro syslinux terminator fluxbox 
+## 
 ## Thanks:
 ## https://www.tldp.org/LDP/abs/html/colorizing.html
 ## That one person on stackexchange who answered everything in one post.
@@ -48,7 +60,7 @@ LOGFILE="$0.logfile"
 set -euo pipefail
 IFS=$'\n\t'
 #SANDBOX user configuration
-user()
+new_user()
 {
 	USER='moop'
 }
@@ -95,6 +107,9 @@ respositorie()
 device()
 {
     WANNABE_LIVE_DISK=""
+}
+iso_path(){
+    ISO_LOCATION="live.iso"
 }
 sandbox_only()
 {
@@ -147,6 +162,10 @@ while [ $# -gt 0 ]; do
   if [ -z "$CMD" ]; then echo "ERROR: Command '$1' not supported"; exit 1; fi
   shift; eval "$CMD" $@ || shift $? 2> /dev/null
 done
+#################################################################################
+#
+#       VARIABLES YOU NEED TO CHANGE!!!
+#
 # HOST network interface configuration that connects to SANDBOX
 # In my test this is a Wireless-N Range extender with OpenWRT connected through a Ethernet to USB connector
 HOST_IFACE_NAME='enx000ec6527123'
@@ -157,9 +176,13 @@ IF_CNC='eth0'
 IF_IP_CNC='192.168.0.44'
 # Internet access for the LAN, This is your internet router.
 GATEWAY='192.168.0.1'
+SANDBOX_HOSTNAME="IDontReadBeforeExecuting"
+# make it a little less than 16 Gb so we can use shitty USB sticks en masse
+reqSpace=16000000 
 mount_iso_on_temp() {    
     info "Mounting Live ISO on /tmp/live-iso"
-    if [ -f /tmp/live-iso/ ]; then
+    if [ -d /tmp/live-iso/ ]; then
+        mkdir /tmp/live-iso/
         if mount -oro $ISO_LOCATION /tmp/live-iso; then
             cecho "[+] ISO Successfully Mounted On /tmp/live-iso!"
         else
@@ -167,11 +190,21 @@ mount_iso_on_temp() {
         fi
     fi
 }
+makeiso_from_debootstrap() {
+    error_exit "operation not supported yet"
+
+}
+extract_iso_to_disk() {
+    error_exit "operation not supported yet"
+
+}
+make_disk_bootable() {
+    error_exit "operation not supported yet"
+}
 #takes an argument
 check_for_space(){
-    reqSpace=100000000
     availSpace=$(df "${1}" | awk 'NR==2 { print $4 }')
-    if (( availSpace < reqSpace )); then
+    if (( availSpace < $reqSpace )); then
         echo "not enough Space" >&2
         exit 1
     fi
@@ -192,7 +225,7 @@ analyze_yes_no_opts(){
     #Mounts the ISO file if an ISO is used
     if $(yn) $USE_ISO == 'n' ; then
         info "Not Using An ISO"
-    elif $(yn) $USE_ISO == 'y' : then
+    elif $(yn) $USE_ISO == 'y' ; then
         cecho " Mounting ISO file in /tmp" green ""
         mount_iso_on_temp;
     else 
@@ -287,7 +320,7 @@ check_os () {
   info "Operating System: $OS"
   if [ "${OS}" = "Linux" ] ; then
     info "You appear to be on the correct OS"
-  else [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]; then
+  else [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]
     fatal "Cannot work on :" "$OS"
   fi
   return 1
@@ -340,13 +373,26 @@ deboot_first_stage(){
 ############################### Finish setting up the basic system #########################################################
 deboot_second_stage(){
 	sudo -S chroot $SANDBOX
-	sudo -S useradd $USER 
-	passwd  $USER
-	login $USER
+    cecho "Please set the ROOT PASSWORD" blue ""
+    wait 3
+    passwd root
+    cecho "[+] Adding USER $USER" yellow ""
+	useradd $USER 
+    cecho "Please set the USER PASSWORD" blue ""
+    wait 3
+    passwd $USER
+    cecho "Please add the new user to /etc/sudoers" blue ""
+	wait 3
+    nano /etc/sudoers
+    cecho "[+] Logging In As $USER" yellow ""
+    wait 2
+    login $USER
+    cecho "[+] Beginning Package Installation" yellow ""
+    wait 3 
 	sudo -S apt-get update
-	sudo -S apt-get --no-install-recommends install wget debconf nano curl
+	sudo -S apt-get --no-install-recommends install wget debconf nano curl grub2 grub-efi-amd64
 	sudo -S apt-get update  #clean the gpg error message
-	sudo -S apt-get install locales dialog  #If you don't talk en_US
+	#sudo -S apt-get install locales dialog  #If you don't talk en_US
 	#sudo -S locale-gen en_US.UTF-8  # or your preferred locale
 	#tzselect; TZ='Continent/Country'; export TZ  #Configure and use our local time instead of UTC; save in .profile
 }
@@ -357,6 +403,7 @@ deboot_second_stage(){
 deboot_third_stage()
 {
 	sudo -S apt install $EXTRA_PACKAGES
+    sudo -S echo $SANDBOX_HOSTNAME > /etc/hostname
 }
 ####################################################################################################################
 # TOFOMOFO: check for disk space and throw a warning if needed                                                     #
@@ -689,30 +736,64 @@ if ! which syslinux > /dev/null; then
    fi
 fi
 ##### PARSE BOOLEAN OPTIONS #######
-#### they want to make an ISO
-if [ MAKE_ISO == 1 ]; then
-    warn "Iso Creation not supported yet"
-fi
-if [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 1]; then
+#user done goofed
+if [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 1 ]; then
     error_exit "Cannot do --sandbox_only AND --filesystem_only "
-
 #### Only make filesystem
-elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 1]; then
+#user done didnt goofed
+elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 1 ]; then
     format_disk
     partition_disk
 #### only make sandbox
-elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0]; then
+elif [ ONLY_SANDBOX = 1 && ONLY_FILESYSTEM == 0 ]; then
     cecho " Thank you for riding the OS_Express, please stay in your seat and follow the prompts"
     # correct OS
     if check_os; then
     # enough space
-        if check_for_space; then
-            deboot_first_stage
-            deboot_second_stage
-            deboot_third_stage
-
+        if check_for_space $WANNABE_LIVE_DISK; then
+    # Check if they want to make or use an ISO
+    # they want to use an iso        
+            if [ USE_ISO == 1 && MAKE_ISO == 0 ];then
+                mount_iso_on_temp
+                extract_iso_to_disk
+                make_disk_bootable
+    # they want to make an iso
+            elif [ USE_ISO == 0 && MAKE_ISO == 1 ]
+                deboot_first_stage
+                deboot_second_stage
+                deboot_third_stage
+                makeiso_from_debootstrap
+    # they want just a sandbox without using or making an ISO
+    # This is the expected to be the most used option for my 
+    # purposes So expect the most focus on this
+    #
+    # NETWORKED SANDBOX, MAIN PURPOSE FOR THIS SCRIPT
+    # EVERYTHING ELSE IS TO SUPPORT THIS ONE FUNCTION
+            elif [ USE_ISO == 0 && MAKE_ISO == 0 ]
+                deboot_first_stage
+                deboot_second_stage
+                deboot_third_stage
+                create_iface_ipr2
+                setup_host_networking
+                setup_network                
+    # They want to use an iso, modify it and repack it into an iso
+    # OTHER OTHER MAIN FUNCTION FOR THIS SCRIPT
+            elif [ USE_ISO == 1 && MAKE_ISO == 1 ]
+                error_exit "Currently Using and Generating an ISO together is not supported, wait for version 2"
+                mount_iso_on_temp
+                extract_iso
+                deboot_first_stage
+                deboot_second_stage
+                deboot_third_stage
+                makeiso_from_debootstrap
+            else 
+                error_exit "Something REALLY strange happened! Check the Logfile!"                
+            fi
+        fi
+    fi
 #### They want BOTH! YEAH!
-elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 0]; then
+# OTHER MAIN FUNCTION FOR THIS SCRIPT
+elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 0 ]; then
     cecho " Thank you for riding the OS_Express, please stay in your seat and follow the prompts"
     # correct OS
     if check_os; then
@@ -729,16 +810,7 @@ elif [ ONLY_SANDBOX = 0 && ONLY_FILESYSTEM == 0]; then
 else 
 
 fi
-
-
-
-
-
-
-
-fi
-#use iproute2 for because reasons
-#del_iface1
+del_iface1
 del_iface2
 create_disk
 create_iface_ipr1
