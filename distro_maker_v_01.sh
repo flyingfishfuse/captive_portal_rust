@@ -124,7 +124,7 @@ undecided(){
 }
 sandbox_only()
 {
-    SANDBOX='y'
+    ONLY_SANDBOX='y'
 }
 filesystem_only()
 {
@@ -314,10 +314,10 @@ analyze_yes_no_opts(){
         error_exit " That wasn't a 'y' or 'n' in those boolean options for Creating an ISO"
     fi
  ###### SANDBOX ONLY ###################################################   
-    if $(yn) $SANDBOX == "n" ; then
-        ONLY_SANDBOX=0    
-    elif $(yn) $SANDBOX == "y" ; then
-        ONLY_SANDBOX=1
+    if $(yn) $ONLY_SANDBOX == "n" ; then
+        O_SANDBOX=0    
+    elif $(yn) $ONLY_SANDBOX == "y" ; then
+        O_SANDBOX=1
     else 
         error_exit " That wasn't a 'y' or 'n' in those boolean options for Sandbox"
     fi
@@ -619,15 +619,15 @@ apt-get install -y systemd-sysv
     fi
     cecho "Please add the new user to /etc/sudoers" blue ""
 	wait 3
-    nano /etc/sudoers
+    sudo -S nano /etc/sudoers
     info "Logging In As $USER"
     wait 2
     login $USER
     cecho "[+] Beginning Package Installation" yellow ""
     wait 3 
-	sudo -S apt-get update -y
-	sudo -S apt-get --no-install-recommends install -y wget debconf nano curl grub2 grub-efi-amd64
-	sudo -S apt-get update -y  #clean the gpg error message
+	sudo -S apt update -y
+	sudo -S apt --no-install-recommends install -y wget debconf nano curl grub2 grub-efi-amd64
+	sudo -S apt update -y  #clean the gpg error message
 	#sudo -S apt-get install locales dialog  #If you don't talk en_US
 	#sudo -S locale-gen en_US.UTF-8  # or your preferred locale
 	#tzselect; TZ='Continent/Country'; export TZ  #Configure and use our local time instead of UTC; save in .profile
@@ -771,7 +771,8 @@ format_disk(){
     --dry-run \
     --progress \
     --human-readable \
-    /tmp/live-iso/* /tmp/usb-live; then
+    $1/* /tmp/usb-live; then
+    ## Takes either from 
         cecho "[+] OS Files Copied!"
     else
         error_exit "[-] Could Not Copy Files! Check the logfile!"
@@ -974,15 +975,15 @@ if ! which syslinux > /dev/null; then
 fi
 ##### PARSE BOOLEAN OPTIONS #######
 #user done goofed
-if [ $ONLY_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 1 ]; then
+if [ $O_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 1 ]; then
     error_exit "Cannot do --sandbox_only AND --filesystem_only "
 #### Only make filesystem
 #user done didnt goofed
-elif [ $ONLY_SANDBOX -eq 0  ] && [ $ONLY_FILESYSTEM -eq 1 ]; then
-    format_disk
+elif [ $O_SANDBOX -eq 0  ] && [ $ONLY_FILESYSTEM -eq 1 ]; then
     partition_disk
+
 #### only make sandbox
-elif [ $ONLY_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 0 ]; then
+elif [ $O_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 0 ]; then
     cecho " Thank you for riding the OS_Express, please stay in your seat and follow the prompts"
     # correct OS
     if check_os; then
@@ -993,6 +994,7 @@ elif [ $ONLY_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 0 ]; then
             if [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 0 ];then
                 mount_iso_on_temp
                 extract_iso_to_disk
+                format_disk $LIVE_DISK
                 make_disk_bootable
     # they want to make an iso
             elif [ $USE_ISO -eq 0 ] && [ $MAKE_ISO -eq 1 ]; then
@@ -1006,7 +1008,7 @@ elif [ $ONLY_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 0 ]; then
     #
     # NETWORKED SANDBOX, MAIN PURPOSE FOR THIS SCRIPT
     # EVERYTHING ELSE IS TO SUPPORT THIS ONE FUNCTION
-            elif [ $USE_ISO -eq 0 ] && [ MAKE_ISO -eq 0 ]; then
+            elif [ $USE_ISO -eq 0 ] && [ $MAKE_ISO -eq 0 ]; then
                 deboot_first_stage
                 deboot_second_stage
                 deboot_third_stage
@@ -1015,7 +1017,7 @@ elif [ $ONLY_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 0 ]; then
                 setup_network                
     # They want to use an iso, modify it and repack it into an iso
     # OTHER OTHER MAIN FUNCTION FOR THIS SCRIPT
-            elif [ USE_ISO -eq 1 ] && [ MAKE_ISO -eq 1 ]; then
+            elif [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 1 ]; then
                 error_exit "Currently Using and Generating an ISO together is not supported, wait for version 2... fuck that its going in version 1"
                 mount_iso_on_temp
                 extract_iso
@@ -1039,12 +1041,27 @@ elif [ ONLY_SANDBOX -eq 0 ] && [ ONLY_FILESYSTEM -eq 0 ]; then
     # correct OS
     if check_os; then
     # enough space
-        if check_for_space; then
-            deboot_first_stage
-            deboot_second_stage
-            deboot_third_stage
-            format_disk
-            partition_disk
+        if check_for_space $WANNABE_LIVE_DISK; then
+    # Check if they want to make or use an ISO
+    # they want to use an iso        
+            if [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 0 ];then
+                deboot_first_stage
+                deboot_second_stage
+                deboot_third_stage
+                format_disk $SANDBOX
+                partition_disk
+            elif [ $USE_ISO -eq 0 ] && [ $MAKE_ISO -eq 1 ]; then
+
+
+            elif [ $USE_ISO -eq 0 ] && [ $MAKE_ISO -eq 0 ]; then
+
+        
+            elif [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 1 ]; then
+
+
+            else
+
+            fi
         fi
     fi
 
