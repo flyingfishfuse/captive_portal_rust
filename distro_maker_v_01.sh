@@ -192,7 +192,7 @@ SANDBOX_HOSTNAME="IDontReadBeforeExecuting"
 reqSpace=16000000 
 declare -a HOST_REQUIRED_PACKAGES=("syslinux" "squashfs-tools" "genisoimage")
 declare -a SANDBOX_REQUIRED_PACKAGES=("ubuntu-standard" "lupin-casper" "linux-generic" "laptop-detect" "os-prober")
-# Necessary Folders for Live ISO
+# Necessary Folders for CREATING Live ISO
 declare -a LIVE_ISO_FOLDERS=("casper" "isolinux" "install")
 
 #############################################################################
@@ -444,6 +444,7 @@ makeiso_from_debootstrap() {
         warn "Could Not Copy Memtest86+, This Is Maybe A Problem"
     fi
 
+make_boot_splash(){
 #To give some boot-time instructions to the user create an isolinux.txt file 
 # in image/isolinux, for example:
 #  splash.rle
@@ -456,46 +457,43 @@ makeiso_from_debootstrap() {
 #************************************************************************
 
 # Splash Screen
-# A graphic can be displayed at boot time, but it is optional. 
+# A graphic can be displayed at boot time
 # The example text above requires a special character along with the file name 
-# of the splash image (splash.rle). To create that character, do the following use the following command:
-
+# of the splash image (splash.rle) 
     printf "\x18" >emptyfile
-
-# and then edit the emptyfile with any text editor. Add the file name just next to the first 
+# and then edit the file Add the file name just next to the first 
 # character and add the text you want to display at boot time beneath it and save the 
 # file as "isolinux.txt" To create the splash.rle file, create an image 480 pixels wide. 
 # Convert it to 15 colours, indexed (perhaps using GIMP) and "Save As" to change the ending 
 # to .bmp which converts the image to a bitmap format. Then install the "netpbm" package and run
     bmptoppm splash.bmp > splash.ppm
     ppmtolss16 '#ffffff=7' < splash.ppm > splash.rle
-
 #Boot-loader Configuration
 #Create an isolinux.cfg file in image/isolinux/ to provide configuration 
 # settings for the boot-loader. Please read syslinux.doc which should be on the host 
 # machine in /usr/share/doc/syslinux to find out about the configuration options available 
 # on the current set-up. Here is an example of what could be in the file:
 
-echo "DEFAULT live"
-echo "LABEL live"
-echo "menu label ^Start or install Ubuntu Remix"
-echo "kernel /casper/vmlinuz"
-echo "append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --"
-echo "LABEL check"
-echo "menu label ^Check CD for defects"
-echo "kernel /casper/vmlinuz"
-echo "append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --"
-echo "LABEL memtest"
-echo "menu label ^Memory test"
-echo "kernel /install/memtest"
-echo "append -"
-echo "LABEL hd"
-echo "menu label ^Boot from first hard disk"
-echo "localboot 0x80"
-echo "append -"
-echo "DISPLAY isolinux.txt"
-echo "TIMEOUT 300"
-echo "PROMPT 1"
+echo "DEFAULT live" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "LABEL live" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  menu label ^Start or install Ubuntu Remix" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  kernel /casper/vmlinuz" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "LABEL check" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  menu label ^Check CD for defects" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  kernel /casper/vmlinuz" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "LABEL memtest" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  menu label ^Memory test" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  kernel /install/memtest" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "  append -" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
+echo "LABEL hd" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
+echo "  menu label ^Boot from first hard disk" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
+echo "  localboot 0x80" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
+echo "  append -" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "DISPLAY isolinux.txt" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "TIMEOUT 300" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+echo "PROMPT 1" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
 
 #prompt flag_val
 #
@@ -692,6 +690,7 @@ cecho "You CAN boot .ISO Files from the persistance partition if you mount in GR
 		error_exit "[-]MSFTdata Flag Setting On Live Disk Failed! Check the logfile!"
 	fi
 }
+# This functions pretty much makes a whole damn live usb but I dont know what to name it
 format_disk(){
 # Here we make the filesystems for the OS to live on
 #########################################################################################################################################    
@@ -718,7 +717,7 @@ format_disk(){
     ## Persistance Partition
     if test -f /dev/${WANNABE_LIVE_DISK}; then
         info "Creating Filesystem On Persistance Partition"
-        if mkfs.ext4 -F -L persistence /dev/${WANNABE_LIVE_DISK}3; then
+        if sudo -S mkfs.ext4 -F -L persistence /dev/${WANNABE_LIVE_DISK}3; then
             cecho "[+] Created Ext4 Filesystem on Persistance Partion " green
         else 
             error_exit "[-] Creation of Ext4 Filesystem on Persistance Partition Failed! Check the logfile!"
@@ -727,7 +726,7 @@ format_disk(){
 #########################################################################################################################################    
     # Creating Temporary work directories
     info "[+] Creating Temporary Work Directories"
-    if mkdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
+    if sudo -S mkdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
         cecho "[+] Created Folders In /tmp" green
     else
         error_exit "[-] Could Not Create Folders in /tmp ! Check the logfile!"
@@ -735,7 +734,7 @@ format_disk(){
 #########################################################################################################################################    
     # Mounting those directories on the newly created filesystem
     info "Mounting /tmp/usb-efi/ On dev/${WANNABE_LIVE_DISK}1"
-    if mount /dev/${WANNABE_LIVE_DISK}1 /tmp/usb-efi; then
+    if sudo -S mount /dev/${WANNABE_LIVE_DISK}1 /tmp/usb-efi; then
         cecho "[+] Mounted Sucessfully!" green
     else
         error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!"   
@@ -743,14 +742,14 @@ format_disk(){
 #########################################################################################################################################    
     #mount Live Partition
     info "Mounting /tmp/usb-live/ On dev/${WANNABE_LIVE_DISK}2"
-    if mount /dev/${WANNABE_LIVE_DISK}2 /tmp/usb-live; then
+    if sudo -S mount /dev/${WANNABE_LIVE_DISK}2 /tmp/usb-live; then
         cecho "[+] Mounted Sucessfully!" green
     else
         error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!"
     fi
 #########################################################################################################################################    
     info "Mounting /tmp/usb-persistence/ On dev/${WANNABE_LIVE_DISK}3"
-    if mount /dev/${WANNABE_LIVE_DISK}3 /tmp/usb-persistence; then
+    if sudo -S mount /dev/${WANNABE_LIVE_DISK}3 /tmp/usb-persistence; then
         cecho "[+] Mounted Sucessfully!" green
     else
         error_exit "[-] Could Not Mount Folder On Partition! Check the logfile!"
@@ -758,7 +757,7 @@ format_disk(){
     fi
 #########################################################################################################################################    
     ## rsync --verbose --recursive --specials --executability ---perms --relative --safe-links --xattrs --owner --group --preallocate --dry-run --progress --human-readable
-    if rsync --verbose \
+    if sudo -S rsync --verbose \
     --recursive \
     --specials \
     --executability \
@@ -781,7 +780,7 @@ format_disk(){
     # IMPORTANT! This establishes persistance! UNION is a special mounting option 
     # https://unix.stackexchange.com/questions/282393/union-mount-on-linux
     info "Establishing Persistence!"
-    if echo "/ union" > /tmp/usb-persistence/persistence.conf; then
+    if sudo -S echo "/ union" > /tmp/usb-persistence/persistence.conf; then
         cecho "[+] Union Mount Of Persistence Partition On Root Filesystem Should Work Now!"
     else
         error_exit "[-] Could Not Establish Persistence! Check the logfile!"
@@ -798,21 +797,21 @@ format_disk(){
     if [ $BIT_SIZE = "64" ]; then
         if [ $ARCH == "ARM" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
-            if grub-install --removable --target=arm-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
+            if sudo -S grub-install --removable --target=arm-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
                 cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
 		        error_exit "[-]GRUB2 Install Failed! Check the logfile!"
 	        fi   
         elif [ $ARCH == "X86" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
-            if grub-install --removable --target=i386-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK; then
+            if sudo -S grub-install --removable --target=i386-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK; then
                 cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
 		        error_exit "[-]GRUB2 Install Failed! Check the logfile!"
 	        fi
         elif [ $ARCH == "X64" ] ; then
             cecho "[+] Installing GRUB2 for ${ARCH} to /dev/${WANNABE_LIVE_DISK}" yellow
-            if grub-install --removable --target=X86_64-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
+            if sudo -S grub-install --removable --target=X86_64-efi --boot-directory=/tmp/usb-live/boot/ --efi-directory=/tmp/usb-efi /dev/$WANNABE_LIVE_DISK ; then
 	            cecho "[+] GRUB2 Install Finished Successfully!" green
 	        else
 		        error_exit "[-]GRUB2 Install Failed! Check the logfile!"
@@ -823,24 +822,24 @@ format_disk(){
     fi
 #########################################################################################################################################    
     info "Copying MBR for syslinux booting of LIVE disk"
-    dd bs=440 count=1 conv=notrunc if=/usr/lib/syslinux/mbr/gptmbr.bin of=/dev/sdX
+    dd bs=440 count=1 conv=notrunc if=/usr/lib/syslinux/mbr/gptmbr.bin of=/dev/${WANNABE_LIVE_DISK}
 #########################################################################################################################################    
     # Install Syslinux
     # https://wiki.syslinux.org/wiki/index.php?title=HowTos
     info "Installing SysLinux on Live Disk"
-    if syslinux --install /dev/${WANNABE_LIVE_DISK}2; then
+    if sudo -S syslinux --install /dev/${WANNABE_LIVE_DISK}2; then
         cecho "[+] Syslinux installed on ${WANNABE_LIVE_DISK} !" green ""
-        if mv /tmp/usb-live/isolinux /tmp/usb-live/syslinux; then
+        if sudo -S mv /tmp/usb-live/isolinux /tmp/usb-live/syslinux; then
             cecho "[+] Isolinux Changed to Syslinux!" green ""
         else 
             error_exit "[-] ERROR WHILE INSTALLING SYSLINUX: Check the logfile!"
         fi
-        if mv /tmp/usb-live/syslinux/isolinux.bin /tmp/usb-live/syslinux/syslinux.bin; then
+        if sudo -S mv /tmp/usb-live/syslinux/isolinux.bin /tmp/usb-live/syslinux/syslinux.bin; then
             cecho "[+] Isolinux.bin Changed to syslinux.bin!" green ""
         else 
             error_exit "[-] ERROR WHILE INSTALLING SYSLINUX: Check the logfile!"
         fi
-        if mv /tmp/usb-live/syslinux/isolinux.cfg /tmp/usb-live/syslinux/syslinux.cfg; then
+        if sudo -S mv /tmp/usb-live/syslinux/isolinux.cfg /tmp/usb-live/syslinux/syslinux.cfg; then
             cecho "[+] Isolinux configuration Changed to Syslinux!" green ""
         else 
             error_exit "[-] ERROR WHILE INSTALLING SYSLINUX: Check the logfile!"
@@ -851,25 +850,25 @@ format_disk(){
 #########################################################################################################################################    
     info "Finishing Syslinux Install"
     # Magic, sets up syslinux configuration and layouts 
-    if sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg; then
+    if sudo -S sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg; then
         cecho "[+] Grub.cgf modified!" green ""
     else
         error_exit "[-] Could not edit Grub.cgf! Check the logfile!"
     fi
 #########################################################################################################################################    
-    if sed --in-place '0,/boot=live/{s/\(boot=live .*\)$/\1 persistence/}' /tmp/usb-live/boot/grub/grub.cfg /tmp/usb-live/syslinux/menu.cfg; then
+    if sudo -S sed --in-place '0,/boot=live/{s/\(boot=live .*\)$/\1 persistence/}' /tmp/usb-live/boot/grub/grub.cfg /tmp/usb-live/syslinux/menu.cfg; then
         cecho "[+] File modified!" green ""
     else
         error_exit "[-] Could Not Edit File For Persistance! Check the logfile!"
     fi
 #########################################################################################################################################    
-    if sed --in-place '0,/boot=live/{s/\(boot=live .*\)$/\1 keyboard-layouts=en locales=en_US/}' /tmp/usb-live/boot/grub/grub.cfg /tmp/usb-live/syslinux/menu.cfg; then
+    if sudo -S sed --in-place '0,/boot=live/{s/\(boot=live .*\)$/\1 keyboard-layouts=en locales=en_US/}' /tmp/usb-live/boot/grub/grub.cfg /tmp/usb-live/syslinux/menu.cfg; then
         cecho "[+] Locales Have Been Set!" green ""
     else
         error_exit "[-] Could Not Set Locales! Check the logfile!"
     fi
 #########################################################################################################################################
-    if sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg; then
+    if sudo -S sed --in-place 's#isolinux/splash#syslinux/splash#' /tmp/usb-live/boot/grub/grub.cfg; then
         cecho "[+] !" green ""
     else
         error_exit "[-] Could not edit file! Check the logfile!"
@@ -877,12 +876,12 @@ format_disk(){
 #########################################################################################################################################    
     info "... Cleaning up"
     # Clean up!
-    if umount /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
+    if sudo -S umount /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
         cecho "[+] Temporary Folders Unmounted!"
     else
         warn "Could Not Unmount Temporary Folders!!"
     fi
-    if rmdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
+    if sudo -S rmdir /tmp/usb-efi /tmp/usb-live /tmp/usb-persistence /tmp/live-iso; then
         cecho "[+] Temporary Folders Deleted!" green ""
     else
         warn "Could Not Delete Temporary Folders!!"
