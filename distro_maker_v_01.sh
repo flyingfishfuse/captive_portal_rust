@@ -25,8 +25,10 @@
 ##   -r, --repositorie REPO   The Debian-based repository. E.g. "Ubuntu"        (Default: http://archive.ubuntu.com/ubuntu/)
 ##   -d, --device DEVICE      The device to install the Distro to               (Default: NONE THATS DANGEROUS!)
 ##   -t, --iso_path PATH      Path to the iso if you are supplying one          (Default: ./live.iso)
-##   -w, --live_path PATH     Path to Create Live ISO Folder                    (Default: /tmp/live_iso)                
-##
+##   -b, --mount_path PATH    Path to MOUNT Live ISO                            (Default: /tmp/live_iso/)
+##   -g, --live_path PATH     Path To Create For Building an ISO                (Default: /tmp/live_build_iso/)                
+##   -j, --undecided          UNDECIDED                                         (Default: WATIZDIS?)
+##    
 ##       Boolean Options : "y" for YES, "n" for NO
 ##   -s, --sandbox_only       Only makes the SANDBOX                            (Default: n)
 ##   -f, --filesystem_only    Only makes the disk and filesystem structure      (Default: n)
@@ -111,8 +113,14 @@ device()
 iso_path(){
     ISO_LOCATION="live.iso"
 }
+mount_path(){
+    TEMP_LIVE_ISO_PATH="/tmp/live_iso/"
+}
 live_path(){
-    TEMP_LIVE_ISO_PATH="/tmp/live-iso"
+    TEMP_LIVE_ISO_BUILD_PATH="/tmp/live_build_iso/"
+}
+undecided(){
+    WAT="WATIZDIS"
 }
 sandbox_only()
 {
@@ -375,12 +383,12 @@ make_iso_folders(){
 # Encountered an Error and had to fix it.
     for folder in "${LIVE_ISO_FOLDERS[@]}"
 # Folder was already created
-        if [ -d "$TEMP_LIVE_ISO_PATH/$folder" ]; then
-            cecho "[+] $TEMP_LIVE_ISO_PATH/$folder ALREADY EXISTS!" green ""
+        if [ -d "$TEMP_LIVE_ISO_BUILD_PATH/$folder" ]; then
+            cecho "[+] $TEMP_LIVE_ISO_BUILD_PATH/$folder ALREADY EXISTS!" green ""
 # Folder was not created and must be manifested from the ether
         else
-            if mkdir $TEMP_LIVE_ISO_PATH/$folder; then
-                cecho "[+] Created $TEMP_LIVE_ISO_PATH/$folder!" green ""
+            if mkdir $TEMP_LIVE_ISO_BUILD_PATH/$folder; then
+                cecho "[+] Created $TEMP_LIVE_ISO_BUILD_PATH/$folder!" green ""
 # Something strange happened and we cannot continue with ISO creation
 # without those necessary folders so we EXIT and let the user deal with
 # the problem
@@ -391,6 +399,7 @@ make_iso_folders(){
         fi
     done
 }
+
 makeiso_from_debootstrap() {
     info "Beginning ISO Creation..."
 # Check packages
@@ -413,8 +422,8 @@ makeiso_from_debootstrap() {
     # Grab them from your chroot. Use the current version. Note that before 9.10, 
     # the initrd was in gz NOT lz format...
     # COPY from SANDBOX to TEMP ISO FOLDERS
-    cp $SANDBOX/boot/vmlinuz-2.6.**-**-generic $TEMP_LIVE_ISO_PATH/casper/vmlinuz
-    cp $SANDBOX/boot/initrd.img-2.6.**-**-generic $TEMP_LIVE_ISO_PATH/casper/initrd.lz
+    cp $SANDBOX/boot/vmlinuz-2.6.**-**-generic $TEMP_LIVE_ISO_BUILD_PATH/casper/vmlinuz
+    cp $SANDBOX/boot/initrd.img-2.6.**-**-generic $TEMP_LIVE_ISO_BUILD_PATH/casper/initrd.lz
     cp /usr/lib/ISOLINUX/isolinux.bin image/isolinux/
     cp /usr/lib/syslinux/modules/bios/ldlinux.c32 image/isolinux/ # for syslinux 5.00 and newer
     cp /boot/memtest86+.bin image/install/memtest
@@ -427,7 +436,8 @@ makeiso_from_debootstrap() {
 # This is an /*Ubuntu*/ WHATEVER THE FUCK YOU WANT Remix Live CD.
 #
 # For the default live system, enter "live".  To run memtest86+, enter "memtest"
-#
+# Hot damn thank you kostya!
+# https://www.linuxquestions.org/questions/linux-software-2/how-to-get-grub-to-launch-isolinux-syslinux-boot-menu-796787/#post4251314
 #************************************************************************
 
 # Splash Screen
@@ -451,26 +461,26 @@ makeiso_from_debootstrap() {
 # machine in /usr/share/doc/syslinux to find out about the configuration options available 
 # on the current set-up. Here is an example of what could be in the file:
 
-"DEFAULT live"
-"LABEL live"
-  "menu label ^Start or install Ubuntu Remix"
-  "kernel /casper/vmlinuz"
-  "append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --"
-"LABEL check"
-  "menu label ^Check CD for defects"
-  "kernel /casper/vmlinuz"
-  "append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --"
-"LABEL memtest"
-  "menu label ^Memory test"
-  "kernel /install/memtest"
-  "append -"
-"LABEL hd"
-  "menu label ^Boot from first hard disk"
-  "localboot 0x80"
-  "append -"
-"DISPLAY isolinux.txt"
-"TIMEOUT 300"
-"PROMPT 1"
+echo "DEFAULT live"
+echo "LABEL live"
+echo "menu label ^Start or install Ubuntu Remix"
+echo "kernel /casper/vmlinuz"
+echo "append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --"
+echo "LABEL check"
+echo "menu label ^Check CD for defects"
+echo "kernel /casper/vmlinuz"
+echo "append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --"
+echo "LABEL memtest"
+echo "menu label ^Memory test"
+echo "kernel /install/memtest"
+echo "append -"
+echo "LABEL hd"
+echo "menu label ^Boot from first hard disk"
+echo "localboot 0x80"
+echo "append -"
+echo "DISPLAY isolinux.txt"
+echo "TIMEOUT 300"
+echo "PROMPT 1"
 
 #prompt flag_val
 #
