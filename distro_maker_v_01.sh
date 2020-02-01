@@ -1050,12 +1050,22 @@ elif [ ONLY_SANDBOX -eq 0 ] && [ ONLY_FILESYSTEM -eq 0 ]; then
                 deboot_third_stage
                 format_disk $SANDBOX
                 partition_disk
+    # They want to MAKE an ISO
             elif [ $USE_ISO -eq 0 ] && [ $MAKE_ISO -eq 1 ]; then
-
-
+                deboot_first_stage
+                deboot_second_stage
+                deboot_third_stage
+                format_disk $SANDBOX
+                makeiso_from_debootstrap
+                partition_disk
+    # They Just Want the Sandbox And Filesystem ON A USB
             elif [ $USE_ISO -eq 0 ] && [ $MAKE_ISO -eq 0 ]; then
-
-        
+                deboot_first_stage
+                deboot_second_stage
+                deboot_third_stage
+                format_disk $SANDBOX
+                partition_disk
+    # They want to MAKE AN ISO FROM DEBOOTSTRAP and USE That ISO
             elif [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 1 ]; then
 
 
