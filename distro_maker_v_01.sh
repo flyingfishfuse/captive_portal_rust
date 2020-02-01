@@ -407,27 +407,42 @@ makeiso_from_debootstrap() {
         cecho "[+] All Required Packages for the Host Have Been Instlled!" green ""
     else
         error_exit "Something Strange Happened with Package Install, Check The LogFile!!"
+    fi
     if make_iso_folders; then 
         cecho "[+] All Necessary Folders Have Been Created!"
     else   
         error_exit "[-] Could Not Create Necessary Folder Structure, Check The LogFile!!"
-    fi
-                    mount_iso_on_temp
-                extract_iso
-                deboot_first_stage
-                deboot_second_stage
-                deboot_third_stage
-                makeiso_from_debootstrap
+    fi                            
     # You will need a kernel and an initrd that was built with the Casper scripts. 
     # Grab them from your chroot. Use the current version. Note that before 9.10, 
     # the initrd was in gz NOT lz format...
     # COPY from SANDBOX to TEMP ISO FOLDERS
-    cp $SANDBOX/boot/vmlinuz-2.6.**-**-generic $TEMP_LIVE_ISO_BUILD_PATH/casper/vmlinuz
-    cp $SANDBOX/boot/initrd.img-2.6.**-**-generic $TEMP_LIVE_ISO_BUILD_PATH/casper/initrd.lz
-    cp /usr/lib/ISOLINUX/isolinux.bin image/isolinux/
-    cp /usr/lib/syslinux/modules/bios/ldlinux.c32 image/isolinux/ # for syslinux 5.00 and newer
-    cp /boot/memtest86+.bin image/install/memtest
-    Boot Instructions for the Remix User
+    if rsync --info=progress2 $SANDBOX/boot/vmlinuz-2.6.**-**-generic $TEMP_LIVE_ISO_BUILD_PATH/casper/vmlinuz; then
+        cecho "[+] Success!" green ""    
+    else
+        warn "Could Not Copy the KERNEL, This Is A Problem"
+    fi
+    if rsync --info=progress2 $SANDBOX/boot/initrd.img-2.6.**-**-generic $TEMP_LIVE_ISO_BUILD_PATH/casper/initrd.lz; then
+        cecho "[+] Success!" green ""    
+    else
+        warn "Could Not Copy the INITRD, This Is A Problem"
+    fi
+    if rsync --info=progress2 /usr/lib/ISOLINUX/isolinux.bin image/isolinux/; then
+        cecho "[+] Success!" green ""    
+    else
+        warn "Could Not Copy the BootLoader, This Is A Problem"
+    fi
+    if rsync --info=progress2 /usr/lib/syslinux/modules/bios/ldlinux.c32 image/isolinux/ ; then
+    # for syslinux 5.00 and newer
+        cecho "[+] Success!" green ""
+    else
+        warn "Could Not Copy ldlinux.c32, This Is A Problem"
+    fi
+    if rsync --info=progress2 /boot/memtest86+.bin image/install/memtest
+        cecho "[+] Success!" green ""
+    else
+        warn "Could Not Copy Memtest86+, This Is Maybe A Problem"
+    fi
 
 #To give some boot-time instructions to the user create an isolinux.txt file 
 # in image/isolinux, for example:
