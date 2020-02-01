@@ -179,6 +179,37 @@ HOST_IFACE_NAME='enx000ec6527123'
 SANDBOX_HOSTNAME="IDontReadBeforeExecuting"
 # make it a little less than 16 Gb so we can use shitty USB sticks en masse
 reqSpace=16000000 
+declare -a HOST_REQUIRED_PACKAGES=("syslinux" "squashfs-tools" "genisoimage")
+declare -a SANDBOX_REQUIRED_PACKAGES=("ubuntu-standard" "lupin-casper" "linux-generic" "laptop-detect" "os-prober")
+
+#############################################################################
+#     Lets do some preliminary checks and get some info
+#############################################################################
+
+
+#########################################################3
+##
+##                   FUNCTIONS
+##                    GO HERE
+##
+###########################################################
+check_host_install_requirements(){
+    ## loop through the array of package names
+    for i in "${HOST_REQUIRED_PACKAGES[@]}"
+    do
+    # You can access them using echo "${arr[0]}", "${arr[1]}" also
+        PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $i | grep "install ok installed")
+        if [ "" == "$PKG_OK" ]; then
+            warn "Package : $i Is NOT Installed, But Required. \n Install? (y/n) (You kinda need it for this whole process)"
+            DECISION = read
+            if $(yn) $DECISION == 'y'; then
+                sudo apt install $i       
+            else 
+                fatal "You obviously don't want to run this script any further!"
+            fi
+        fi
+    done
+}
 mount_iso_on_temp() {    
     info "Mounting Live ISO on /tmp/live-iso"
     if [ -d /tmp/live-iso/ ]; then
@@ -192,7 +223,113 @@ mount_iso_on_temp() {
 }
 makeiso_from_debootstrap() {
     error_exit "operation not supported yet"
+    sudo apt-get install syslinux squashfs-tools genisoimage
+    mkdir -p image/{casper,isolinux,install}
+    # Same as 'mkdir image image/casper image/isolinux image/install'
+    # You will need a kernel and an initrd that was built with the Casper scripts. 
+    # Grab them from your chroot. Use the current version. Note that before 9.10, 
+    # the initrd was in gz not lz format...
+    cp chroot/boot/vmlinuz-2.6.**-**-generic image/casper/vmlinuz
+    cp chroot/boot/initrd.img-2.6.**-**-generic image/casper/initrd.lz
+    cp /usr/lib/ISOLINUX/isolinux.bin image/isolinux/
+    cp /usr/lib/syslinux/modules/bios/ldlinux.c32 image/isolinux/ # for syslinux 5.00 and newer
+    cp /boot/memtest86+.bin image/install/memtest
+    Boot Instructions for the Remix User
 
+#To give some boot-time instructions to the user create an isolinux.txt file 
+# in image/isolinux, for example:
+#  splash.rle
+#************************************************************************
+# This is an /*Ubuntu*/ WHATEVER THE FUCK YOU WANT Remix Live CD.
+#
+# For the default live system, enter "live".  To run memtest86+, enter "memtest"
+#
+#************************************************************************
+
+# Splash Screen
+# A graphic can be displayed at boot time, but it is optional. 
+# The example text above requires a special character along with the file name 
+# of the splash image (splash.rle). To create that character, do the following use the following command:
+
+    printf "\x18" >emptyfile
+
+# and then edit the emptyfile with any text editor. Add the file name just next to the first 
+# character and add the text you want to display at boot time beneath it and save the 
+# file as "isolinux.txt" To create the splash.rle file, create an image 480 pixels wide. 
+# Convert it to 15 colours, indexed (perhaps using GIMP) and "Save As" to change the ending 
+# to .bmp which converts the image to a bitmap format. Then install the "netpbm" package and run
+    bmptoppm splash.bmp > splash.ppm
+    ppmtolss16 '#ffffff=7' < splash.ppm > splash.rle
+
+#Boot-loader Configuration
+#Create an isolinux.cfg file in image/isolinux/ to provide configuration 
+# settings for the boot-loader. Please read syslinux.doc which should be on the host 
+# machine in /usr/share/doc/syslinux to find out about the configuration options available 
+# on the current set-up. Here is an example of what could be in the file:
+
+"DEFAULT live"
+"LABEL live"
+  "menu label ^Start or install Ubuntu Remix"
+  "kernel /casper/vmlinuz"
+  "append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --"
+"LABEL check"
+  "menu label ^Check CD for defects"
+  "kernel /casper/vmlinuz"
+  "append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --"
+"LABEL memtest"
+  "menu label ^Memory test"
+  "kernel /install/memtest"
+  "append -"
+"LABEL hd"
+  "menu label ^Boot from first hard disk"
+  "localboot 0x80"
+  "append -"
+"DISPLAY isolinux.txt"
+"TIMEOUT 300"
+"PROMPT 1"
+
+#prompt flag_val
+#
+# If flag_val is 0, display the "boot:" prompt
+# only if the Shift or Alt key is pressed,
+# or Caps Lock or Scroll lock is set (this is the default).
+# If  flag_val is 1, always display the "boot:" prompt.
+#  http://linux.die.net/man/1/syslinux   syslinux manpage
+# Don't forget to pick the correct extension for your initrd (initrd.gz or initrd.lz).
+# Now the CD should be able to boot, at least it will be after the image is burned Wink ;)
+# Create manifest:
+
+    sudo chroot chroot dpkg-query -W --showformat='${Package} ${Version}\n' | sudo tee image/casper/filesystem.manifest
+    sudo cp -v image/casper/filesystem.manifest image/casper/filesystem.manifest-desktop
+    REMOVE='ubiquity ubiquity-frontend-gtk ubiquity-frontend-kde casper lupin-casper live-initramfs user-setup discover1 xresprobe os-prober libdebian-installer4'
+    for i in $REMOVE
+    do
+        sudo sed -i "/${i}/d" image/casper/filesystem.manifest-desktop
+    done
+
+# Compress the chroot
+# If this Customised Remix is to potentially be installed on some systems then the /boot 
+# folder will be needed. To allow the Customised Cd to be an installer Cd, compress the entire 
+# chroot folder with this command:
+    sudo mksquashfs chroot image/casper/filesystem.squashfs
+# Then write the filesystem.size file, which is needed by the installer:
+    printf $(sudo du -sx --block-size=1 chroot | cut -f1) > image/casper/filesystem.size
+# However, if it is not going to be installed and is 'only' meant as a LiveCD then the /boot 
+# folder can be excluded to save space on your iso image. The live system boots from outside the 
+# chroot and so the /boot folder is not used.
+    sudo mksquashfs chroot image/casper/filesystem.squashfs -e boot
+    nano image/README.diskdefines
+# Disk Defines example:
+
+#define DISKNAME  Ubuntu Remix
+#define TYPE  binary
+#define TYPEbinary  1
+#define ARCH  i386
+#define ARCHi386  1
+#define DISKNUM  1
+#define DISKNUM1  1
+#define TOTALNUM  0
+#define TOTALNUM0  1
 }
 extract_iso_to_disk() {
     error_exit "operation not supported yet"
@@ -373,6 +510,12 @@ deboot_first_stage(){
 ############################### Finish setting up the basic system #########################################################
 deboot_second_stage(){
 	sudo -S chroot $SANDBOX
+    mount none -t proc /proc
+mount none -t sysfs /sys
+mount none -t devpts /dev/pts
+export HOME=/root
+export LC_ALL=C
+apt-get install -y systemd-sysv
     cecho "Please set the ROOT PASSWORD" blue ""
     wait 3
     passwd root
@@ -398,9 +541,9 @@ deboot_second_stage(){
     login $USER
     cecho "[+] Beginning Package Installation" yellow ""
     wait 3 
-	sudo -S apt-get update
-	sudo -S apt-get --no-install-recommends install wget debconf nano curl grub2 grub-efi-amd64
-	sudo -S apt-get update  #clean the gpg error message
+	sudo -S apt-get update -y
+	sudo -S apt-get --no-install-recommends install -y wget debconf nano curl grub2 grub-efi-amd64
+	sudo -S apt-get update -y  #clean the gpg error message
 	#sudo -S apt-get install locales dialog  #If you don't talk en_US
 	#sudo -S locale-gen en_US.UTF-8  # or your preferred locale
 	#tzselect; TZ='Continent/Country'; export TZ  #Configure and use our local time instead of UTC; save in .profile
@@ -736,7 +879,7 @@ analyze_yes_no_opts
 get_permission;
 #holy crap they are going to do it!
 if ! which syslinux > /dev/null; then
-   echo -e "syslinux not found! Install? (y/n) (You kinda need it for this whole process)"
+   echo -e "Install? (y/n) (You kinda need it for this whole process)"
    DECISION = read
    if $(yn) $DECISION == 'y'; then
         echo $(sudo apt-get install syslinux)
@@ -841,3 +984,7 @@ establish_network
 
 exit
 warn "What exactly are you trying to do MISTER!?"
+linux-image-generic (4.15.0.76.78 [amd64, i386], 4.15.0.20.23 [arm64, armhf, ppc64el, s390x]) [security]
+    Generic Linux kernel image
+linux-generic (4.15.0.76.78 [amd64, i386], 4.15.0.20.23 [arm64, armhf, ppc64el, s390x]) [security]
+    Complete Generic Linux kernel and headers
