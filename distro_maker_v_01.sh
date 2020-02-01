@@ -419,7 +419,7 @@ makeiso_from_debootstrap() {
 
     # WE GONNA NEED TO CHOOT INTO DA SANDBOX TO GET MOAR KERNEL 
 
-    
+
     # COPY from SANDBOX to TEMP ISO FOLDERS
     if rsync --info=progress2 $SANDBOX/boot/vmlinuz-2.6.**-**-generic $TEMP_LIVE_ISO_BUILD_PATH/casper/vmlinuz; then
         cecho "[+] Success!" green ""    
@@ -586,11 +586,18 @@ deboot_first_stage(){
 deboot_second_stage(){
 	sudo -S chroot $SANDBOX
     mount none -t proc /proc
-mount none -t sysfs /sys
-mount none -t devpts /dev/pts
-export HOME=/root
-export LC_ALL=C
-apt-get install -y systemd-sysv
+    mount none -t sysfs /sys
+    mount none -t devpts /dev/pts
+    export HOME=/root
+    export LC_ALL=C
+    if [ $MAKE_ISO -eq 1 ]; then
+        info "Installing SystemD For Live ISO"
+        if sudo -S apt install -y systemd-sysv; then
+            cecho "[+] SystemD-SysV Has Been Installed Sucessfully!"
+        else 
+            error_exit "Could Not Install SystemD, Review the LogFile and Correct the Problem."
+        fi
+    fi
     cecho "Please set the ROOT PASSWORD" blue ""
     wait 3
     passwd root
@@ -636,7 +643,7 @@ deboot_third_stage()
 # TOFOMOFO: check for disk space and throw a warning if needed                                                     #
 partition_disk() {                                                                                                 #
 # This creates the basic disk structure of an EFI disk with a single OS.                                           #
-cecho "You CAN boot .ISO Files from the persistance partition if you mount in GRUB2" green ""
+    cecho "You CAN boot .ISO Files from the persistance partition if you mount in GRUB2" green ""
 #                                                                                                                  #
 ##### EFI ##########################################################################################################
     info "Creating EFI partition"
@@ -1011,7 +1018,7 @@ elif [ $O_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 0 ]; then
             elif [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 1 ]; then
                 error_exit "Currently Using and Generating an ISO together is not supported, wait for version 2... fuck that its going in version 1"
                 mount_iso_on_temp
-                extract_iso
+                extract_iso_to_disk
                 deboot_first_stage
                 deboot_second_stage
                 deboot_third_stage
@@ -1036,6 +1043,8 @@ elif [ ONLY_SANDBOX -eq 0 ] && [ ONLY_FILESYSTEM -eq 0 ]; then
     # Check if they want to make or use an ISO
     # they want to use an iso        
             if [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 0 ];then
+                fatal "operation not supported yet"
+                extract_iso_to_disk
                 deboot_first_stage
                 deboot_second_stage
                 deboot_third_stage
@@ -1073,23 +1082,8 @@ elif [ ONLY_SANDBOX -eq 0 ] && [ ONLY_FILESYSTEM -eq 0 ]; then
 else 
         cecho "oops" blue ""
 fi
-del_iface1
-del_iface2
-create_disk
-create_iface_ipr1
-create_iface_ipr2
-format_disk
-mount_iso_on_temp
-partition_disk
-setup_host_networking
-setup_network
-deboot_first_stage
-deboot_second_stage
-deboot_third_stage 
-connect_sandbox
-establish_network
-
 exit
+verify_live_iso
 warn "What exactly are you trying to do MISTER!?"
 linux-image-generic (4.15.0.76.78 [amd64, i386], 4.15.0.20.23 [arm64, armhf, ppc64el, s390x]) [security]
     Generic Linux kernel image
