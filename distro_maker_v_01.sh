@@ -24,8 +24,8 @@
 ##   -c, --compenent COMPO    Which repository components are included          (Default: main,contrib,universe,multiverse)
 ##   -r, --repositorie REPO   The Debian-based repository. E.g. "Ubuntu"        (Default: http://archive.ubuntu.com/ubuntu/)
 ##   -d, --device DEVICE      The device to install the Distro to               (Default: NONE THATS DANGEROUS!)
-##   -w, --iso_path PATH      Path to the iso if you are supplying one          (Default: ./live.iso)
-##
+##   -t, --iso_path PATH      Path to the iso if you are supplying one          (Default: ./live.iso)
+##   -w, --live_path PATH     Path to Create Live ISO Folder                    (Default: /tmp/live_iso)                
 ##
 ##       Boolean Options : "y" for YES, "n" for NO
 ##   -s, --sandbox_only       Only makes the SANDBOX                            (Default: n)
@@ -111,6 +111,9 @@ device()
 iso_path(){
     ISO_LOCATION="live.iso"
 }
+live_path(){
+    TEMP_LIVE_ISO_PATH="/tmp/live-iso"
+}
 sandbox_only()
 {
     SANDBOX='y'
@@ -181,6 +184,8 @@ SANDBOX_HOSTNAME="IDontReadBeforeExecuting"
 reqSpace=16000000 
 declare -a HOST_REQUIRED_PACKAGES=("syslinux" "squashfs-tools" "genisoimage")
 declare -a SANDBOX_REQUIRED_PACKAGES=("ubuntu-standard" "lupin-casper" "linux-generic" "laptop-detect" "os-prober")
+# Necessary Folders for Live ISO
+declare -a LIVE_ISO_FOLDERS=("casper" "isolinux" "install")
 
 #############################################################################
 #     Lets do some preliminary checks and get some info
@@ -210,21 +215,67 @@ check_host_install_requirements(){
         fi
     done
 }
+check_sandbox_install_requirements(){
+    ## loop through the array of package names
+    for i in "${SANDBOX_REQUIRED_PACKAGES[@]}"
+    do
+    # You can access them using echo "${arr[0]}", "${arr[1]}" also
+        PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $i | grep "install ok installed")
+        if [ "" == "$PKG_OK" ]; then
+            warn "Package : $i Is NOT Installed, But Required. \n Install? (y/n) (You kinda need it for this whole process)"
+            DECISION = read
+            if $(yn) $DECISION == 'y'; then
+                sudo apt install $i       
+            else 
+                fatal "You obviously don't want to run this script any further!"
+            fi
+        fi
+    done
+}
+# TODO: ADD CLEANUP SCRIPT!
 mount_iso_on_temp() {    
     info "Mounting Live ISO on /tmp/live-iso"
-    if [ -d /tmp/live-iso/ ]; then
-        mkdir /tmp/live-iso/
-        if mount -oro $ISO_LOCATION /tmp/live-iso; then
-            cecho "[+] ISO Successfully Mounted On /tmp/live-iso!"
+    if [ -d $TEMP_LIVE_ISO_PATH ]; then
+        mkdir $TEMP_LIVE_ISO_PATH
+        if mount -oro $ISO_LOCATION $TEMP_LIVE_ISO_PATH; then
+            cecho "[+] ISO Successfully Mounted On $TEMP_LIVE_ISO_PATH!" green ""
         else
             error_exit "[-] Could Not Mount ISO! Check the logfile!"
         fi
     fi
 }
+make_iso_folders(){
+    info "Attempting to Create Necessary Folder Structure For Live ISO"
+# Check if folders already exist, The user may have run this script and
+# Encountered an Error and had to fix it.
+    for folder in "${LIVE_ISO_FOLDERS[@]}"
+# Folder was already created
+        if [ -d "$TEMP_LIVE_ISO_PATH/$folder" ]; then
+            cecho "[+] $TEMP_LIVE_ISO_PATH/$folder ALREADY EXISTS!" green ""
+# Folder was not created and must be manifested from the ether
+        else
+            if mkdir $TEMP_LIVE_ISO_PATH/$folder; then
+                cecho "[+] Created $TEMP_LIVE_ISO_PATH/$folder!" green ""
+            else
+                warn "Could NOT Create Folder $folder!!!"    
+            fi
+        fi
+    done
+
+}
 makeiso_from_debootstrap() {
-    error_exit "operation not supported yet"
-    sudo apt-get install syslinux squashfs-tools genisoimage
-    mkdir -p image/{casper,isolinux,install}
+
+    info "Beginning ISO Creation..."
+# Check packages
+    if check_host_install_requirements; then
+        cecho "[+] All Required Packages for the Host Have Been Instlled!" green ""
+    else
+        error_exit "Something Strange Happened with Package Install, Check The LogFile!!"
+    if make_iso_folders; then 
+        cecho "[+] All Necessary Folders Have Been Created!"
+    else   
+        error_exit "[-] Could Not Create Necessary Folder Structure, Check The LogFile!!"
+    fi
     # Same as 'mkdir image image/casper image/isolinux image/install'
     # You will need a kernel and an initrd that was built with the Casper scripts. 
     # Grab them from your chroot. Use the current version. Note that before 9.10, 
