@@ -394,7 +394,7 @@ make_iso_folders(){
 # the problem
             else
                 warn "Could NOT Create Folder $folder! Please Check the Logfile and Fix the problem. \n Then run this script again"
-                break    
+                break
             fi
         fi
     done
@@ -416,6 +416,10 @@ makeiso_from_debootstrap() {
     # You will need a kernel and an initrd that was built with the Casper scripts. 
     # Grab them from your chroot. Use the current version. Note that before 9.10, 
     # the initrd was in gz NOT lz format...
+
+    # WE GONNA NEED TO CHOOT INTO DA SANDBOX TO GET MOAR KERNEL 
+
+    
     # COPY from SANDBOX to TEMP ISO FOLDERS
     if rsync --info=progress2 $SANDBOX/boot/vmlinuz-2.6.**-**-generic $TEMP_LIVE_ISO_BUILD_PATH/casper/vmlinuz; then
         cecho "[+] Success!" green ""    
@@ -427,22 +431,50 @@ makeiso_from_debootstrap() {
     else
         warn "Could Not Copy the INITRD, This Is A Problem"
     fi
-    if rsync --info=progress2 /usr/lib/ISOLINUX/isolinux.bin image/isolinux/; then
+    if rsync --info=progress2 /usr/lib/ISOLINUX/isolinux.bin $TEMP_LIVE_ISO_BUILD_PATH/isolinux/; then
         cecho "[+] Success!" green ""    
     else
         warn "Could Not Copy the BootLoader, This Is A Problem"
     fi
-    if rsync --info=progress2 /usr/lib/syslinux/modules/bios/ldlinux.c32 image/isolinux/ ; then
+    if rsync --info=progress2 /usr/lib/syslinux/modules/bios/ldlinux.c32 $TEMP_LIVE_ISO_BUILD_PATH/isolinux/ ; then
     # for syslinux 5.00 and newer
         cecho "[+] Success!" green ""
     else
         warn "Could Not Copy ldlinux.c32, This Is A Problem"
     fi
-    if rsync --info=progress2 /boot/memtest86+.bin image/install/memtest
+    if rsync --info=progress2 $SANDBOX/boot/memtest86+.bin $TEMP_LIVE_ISO_BUILD_PATH/install/memtest
         cecho "[+] Success!" green ""
     else
         warn "Could Not Copy Memtest86+, This Is Maybe A Problem"
     fi
+# Don't forget to pick the correct extension for your initrd (initrd.gz or initrd.lz).
+    sudo -S chroot $SANDBOX dpkg-query -W --showformat='${Package} ${Version}\n' | sudo -S tee $TEMP_LIVE_ISO_BUILD_PATH/casper/filesystem.manifest
+    sudo -S cp -v $TEMP_LIVE_ISO_BUILD_PATH/casper/filesystem.manifest $TEMP_LIVE_ISO_BUILD_PATH/casper/filesystem.manifest-desktop
+    REMOVE='ubiquity ubiquity-frontend-gtk ubiquity-frontend-kde casper lupin-casper live-initramfs user-setup discover1 xresprobe os-prober libdebian-installer4'
+    for i in $REMOVE
+    do
+        sudo sed -i "/${i}/d" $TEMP_LIVE_ISO_BUILD_PATH/casper/filesystem.manifest-desktop
+    done
+# Compress the chroot
+    sudo -S mksquashfs $SANDBOX $TEMP_LIVE_ISO_BUILD_PATH/casper/filesystem.squashfs
+# Then write the filesystem.size file, which is needed by the installer:
+    printf $(sudo du -sx --block-size=1 chroot | cut -f1) > $TEMP_LIVE_ISO_BUILD_PATH/casper/filesystem.size
+# However, if it is not going to be installed and is 'only' meant as a LiveCD then the /boot 
+# folder can be excluded to save space on your iso image. The live system boots from outside the 
+# chroot and so the /boot folder is not used.
+    sudo -S mksquashfs $SANDBOX $TEMP_LIVE_ISO_BUILD_PATH/casper/filesystem.squashfs -e boot
+
+    echo "#define DISKNAME  $SANDBOX_HOSTNAME" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+    echo "#define TYPE  binary" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+    echo "#define TYPEbinary  1" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+    echo "#define ARCH  $ARCH" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+    echo "#define ARCHx86_64  1" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+    echo "#define DISKNUM  1" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+    echo "#define DISKNUM1  1" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+    echo "#define TOTALNUM  0" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+    echo "#define TOTALNUM0  1" >> $TEMP_LIVE_ISO_BUILD_PATH/README.diskdefines
+
+}
 
 make_boot_splash(){
 #To give some boot-time instructions to the user create an isolinux.txt file 
@@ -461,7 +493,7 @@ make_boot_splash(){
 # The example text above requires a special character along with the file name 
 # of the splash image (splash.rle) 
     printf "\x18" >emptyfile
-# and then edit the file Add the file name just next to the first 
+# and then edit the emptyfile Add the file name just next to the first 
 # character and add the text you want to display at boot time beneath it and save the 
 # file as "isolinux.txt" To create the splash.rle file, create an image 480 pixels wide. 
 # Convert it to 15 colours, indexed (perhaps using GIMP) and "Save As" to change the ending 
@@ -473,70 +505,29 @@ make_boot_splash(){
 # settings for the boot-loader. Please read syslinux.doc which should be on the host 
 # machine in /usr/share/doc/syslinux to find out about the configuration options available 
 # on the current set-up. Here is an example of what could be in the file:
-
-echo "DEFAULT live" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "LABEL live" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  menu label ^Start or install Ubuntu Remix" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  kernel /casper/vmlinuz" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "LABEL check" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  menu label ^Check CD for defects" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  kernel /casper/vmlinuz" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "LABEL memtest" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  menu label ^Memory test" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  kernel /install/memtest" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "  append -" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
-echo "LABEL hd" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
-echo "  menu label ^Boot from first hard disk" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
-echo "  localboot 0x80" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
-echo "  append -" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "DISPLAY isolinux.txt" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "TIMEOUT 300" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-echo "PROMPT 1" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
-
-#prompt flag_val
-#
-# If flag_val is 0, display the "boot:" prompt
-# only if the Shift or Alt key is pressed,
-# or Caps Lock or Scroll lock is set (this is the default).
-# If  flag_val is 1, always display the "boot:" prompt.
-#  http://linux.die.net/man/1/syslinux   syslinux manpage
-# Don't forget to pick the correct extension for your initrd (initrd.gz or initrd.lz).
-# Now the CD should be able to boot, at least it will be after the image is burned Wink ;)
-# Create manifest:
-
-    sudo chroot chroot dpkg-query -W --showformat='${Package} ${Version}\n' | sudo tee image/casper/filesystem.manifest
-    sudo cp -v image/casper/filesystem.manifest image/casper/filesystem.manifest-desktop
-    REMOVE='ubiquity ubiquity-frontend-gtk ubiquity-frontend-kde casper lupin-casper live-initramfs user-setup discover1 xresprobe os-prober libdebian-installer4'
-    for i in $REMOVE
-    do
-        sudo sed -i "/${i}/d" image/casper/filesystem.manifest-desktop
-    done
-
-# Compress the chroot
-# If this Customised Remix is to potentially be installed on some systems then the /boot 
-# folder will be needed. To allow the Customised Cd to be an installer Cd, compress the entire 
-# chroot folder with this command:
-    sudo mksquashfs chroot image/casper/filesystem.squashfs
-# Then write the filesystem.size file, which is needed by the installer:
-    printf $(sudo du -sx --block-size=1 chroot | cut -f1) > image/casper/filesystem.size
-# However, if it is not going to be installed and is 'only' meant as a LiveCD then the /boot 
-# folder can be excluded to save space on your iso image. The live system boots from outside the 
-# chroot and so the /boot folder is not used.
-    sudo mksquashfs chroot image/casper/filesystem.squashfs -e boot
-    nano image/README.diskdefines
-# Disk Defines example:
-
-#define DISKNAME  Ubuntu Remix
-#define TYPE  binary
-#define TYPEbinary  1
-#define ARCH  i386
-#define ARCHi386  1
-#define DISKNUM  1
-#define DISKNUM1  1
-#define TOTALNUM  0
-#define TOTALNUM0  1
+}
+make_boot_menu_isolinux(){
+    # Edit This to change the menu
+    echo "DEFAULT live" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "LABEL live" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  menu label ^Start or install $SANDBOX_HOSTNAME" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  kernel /casper/vmlinuz" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "LABEL check" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  menu label ^Check CD for defects" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  kernel /casper/vmlinuz" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "LABEL memtest" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  menu label ^Memory test" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  kernel /install/memtest" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "  append -" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
+    echo "LABEL hd" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
+    echo "  menu label ^Boot from first hard disk" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
+    echo "  localboot 0x80" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg 
+    echo "  append -" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "DISPLAY isolinux.txt" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "TIMEOUT 300" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
+    echo "PROMPT 1" >> $TEMP_LIVE_ISO_BUILD_PATH/isolinux/isolinux.cfg
 }
 extract_iso_to_disk() {
     error_exit "operation not supported yet"
@@ -1067,7 +1058,11 @@ elif [ ONLY_SANDBOX -eq 0 ] && [ ONLY_FILESYSTEM -eq 0 ]; then
                 partition_disk
     # They want to MAKE AN ISO FROM DEBOOTSTRAP and USE That ISO
             elif [ $USE_ISO -eq 1 ] && [ $MAKE_ISO -eq 1 ]; then
-
+                deboot_first_stage
+                deboot_second_stage
+                deboot_third_stage
+                format_disk $SANDBOX
+                partition_disk
 
             else
 
