@@ -198,6 +198,130 @@ declare -a LIVE_ISO_FOLDERS=("casper" "isolinux" "install")
 ##                    GO HERE
 ##
 ###########################################################
+#=========================================================
+#            Colorization stuff
+#=========================================================
+black='\E[30;47m'
+red='\E[31;47m'
+green='\E[32;47m'
+yellow='\E[33;47m'
+blue='\E[34;47m'
+magenta='\E[35;47m'
+cyan='\E[36;47m'
+white='\E[37;47m'
+info_blue ='\033[1;36m'
+warn_yell ='\033[1;33m'
+fatal_red ='\033[1;31m'
+alias Reset="tput sgr0"      #  Reset text attributes to normal
+                             #+ without clearing screen.
+cecho (){
+	# Argument $1 = message
+	# Argument $2 = color
+	local default_msg="No message passed."
+    # Doesn't really need to be a local variable.
+	# Message is first argument OR default
+	message=${1:-$default_msg}
+	# olor is second argument OR white
+	color=${2:$white}
+	# extra message field in case you want uncolored stuff after the colored stuff
+	last_word=${3:''}
+	if [ $color='lolz' ]
+	then
+		echo $message | lolcat
+		return
+	else
+		message=${1:-$default_msg}   # Defaults to default message.
+		color=${2:-$black}           # Defaults to black, if not specified.
+		echo -e "$color"
+		echo "$message"
+		Reset                      # Reset to normal.
+		echo "$last_word"
+		return
+    fi
+}  
+info() { cecho "[INFO]" info_blue " $*"; }
+warn() { cecho "[WARNING]" warn_yello "$*"; }
+fatal() { cecho "[FATAL] " fatal_red " $*" ; exit 1 ; }
+error_exit(){
+	cecho "$1" red "" 1>&2 >> $LOGFILE
+	exit 1
+}
+get_permission () {
+  warn 'This script might do terrible things.'
+  read -rp  "Are you sure you wish to continue (Y/n)? " 
+  if [ "$(echo "${REPLY}" | tr "[:upper:]" "[:lower:]")" = "n" ] ; then
+    fatal 'Exiting Program'
+  fi
+}
+check_os () {
+  info "Detecting OS..."
+  OS=$(uname)
+  readonly OS
+  info "Operating System: $OS"
+  if [ "${OS}" = "Linux" ] ; then
+    info "You appear to be on the correct OS"
+  else [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]
+    fatal "Cannot work on :" "$OS"
+  fi
+  return 1
+}
+#takes an argument
+check_for_space(){
+    availSpace=$(df "${1}" | awk 'NR==2 { print $4 }')
+    if (( availSpace < reqSpace )); then
+        echo "not enough Space" >&2
+        exit 1
+    fi
+}
+# you better follow directions better or you are going to fuck your shit up
+yn(){
+    if ${1} | tr [:upper:] [:lower:] == "n" ; then
+        echo 'n'
+    elif ${1} | tr [:upper:] [:lower:] == "y" ; then
+        echo "y"
+    else
+        error_exit "Something Strange happened with a yes no option! Check the Logfile!!"
+    fi
+}
+# make sure they put "y" or "n"
+analyze_yes_no_opts(){
+###### ISO USE #####################################################        
+    #Mounts the ISO file if an ISO is used
+    if $(yn) $USE_ISO == 'n' ; then
+        info "Not Using An ISO"
+    elif $(yn) $USE_ISO == 'y' ; then
+        cecho " Mounting ISO file in /tmp" green ""
+        mount_iso_on_temp;
+    else 
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for Using an ISO"
+    fi
+###### ISO CREATION ################################################
+    if $(yn) $MAKE_ISO_opt == "n" ; then
+        MAKE_ISO=0
+        echo "not working yet"
+    elif $(yn) $MAKE_ISO_opt == "y" ; then
+        MAKE_ISO=1
+        echo "not working yet"
+    else
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for Creating an ISO"
+    fi
+ ###### SANDBOX ONLY ###################################################   
+    if $(yn) $SANDBOX == "n" ; then
+        ONLY_SANDBOX=0    
+    elif $(yn) $SANDBOX == "y" ; then
+        ONLY_SANDBOX=1
+    else 
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for Sandbox"
+    fi
+###### FILESYSTEM ONLY ################################################
+    if $(yn) $FILESYSTEM == "n" ]; then
+        ONLY_FILESYSTEM=0
+    elif $(yn) $FILESYSTEM == "n" ]; then
+        ONLY_FILESYSTEM=1
+    else 
+        error_exit " That wasn't a 'y' or 'n' in those boolean options for Filesystem"
+    fi
+}
 check_host_install_requirements(){
     ## loop through the array of package names
     for i in "${HOST_REQUIRED_PACKAGES[@]}"
@@ -234,7 +358,7 @@ check_sandbox_install_requirements(){
 }
 # TODO: ADD CLEANUP SCRIPT!
 mount_iso_on_temp() {    
-    info "Mounting Live ISO on /tmp/live-iso"
+    info "Mounting Live ISO on $TEMP_LIVE_ISO_PATH"
     if [ -d $TEMP_LIVE_ISO_PATH ]; then
         mkdir $TEMP_LIVE_ISO_PATH
         if mount -oro $ISO_LOCATION $TEMP_LIVE_ISO_PATH; then
@@ -244,6 +368,7 @@ mount_iso_on_temp() {
         fi
     fi
 }
+# This function will exit and allow the user to fix things manually
 make_iso_folders(){
     info "Attempting to Create Necessary Folder Structure For Live ISO"
 # Check if folders already exist, The user may have run this script and
@@ -256,15 +381,17 @@ make_iso_folders(){
         else
             if mkdir $TEMP_LIVE_ISO_PATH/$folder; then
                 cecho "[+] Created $TEMP_LIVE_ISO_PATH/$folder!" green ""
+# Something strange happened and we cannot continue with ISO creation
+# without those necessary folders so we EXIT and let the user deal with
+# the problem
             else
-                warn "Could NOT Create Folder $folder!!!"    
+                warn "Could NOT Create Folder $folder! Please Check the Logfile and Fix the problem. \n Then run this script again"
+                break    
             fi
         fi
     done
-
 }
 makeiso_from_debootstrap() {
-
     info "Beginning ISO Creation..."
 # Check packages
     if check_host_install_requirements; then
@@ -276,12 +403,18 @@ makeiso_from_debootstrap() {
     else   
         error_exit "[-] Could Not Create Necessary Folder Structure, Check The LogFile!!"
     fi
-    # Same as 'mkdir image image/casper image/isolinux image/install'
+                    mount_iso_on_temp
+                extract_iso
+                deboot_first_stage
+                deboot_second_stage
+                deboot_third_stage
+                makeiso_from_debootstrap
     # You will need a kernel and an initrd that was built with the Casper scripts. 
     # Grab them from your chroot. Use the current version. Note that before 9.10, 
-    # the initrd was in gz not lz format...
-    cp chroot/boot/vmlinuz-2.6.**-**-generic image/casper/vmlinuz
-    cp chroot/boot/initrd.img-2.6.**-**-generic image/casper/initrd.lz
+    # the initrd was in gz NOT lz format...
+    # COPY from SANDBOX to TEMP ISO FOLDERS
+    cp $SANDBOX/boot/vmlinuz-2.6.**-**-generic $TEMP_LIVE_ISO_PATH/casper/vmlinuz
+    cp $SANDBOX/boot/initrd.img-2.6.**-**-generic $TEMP_LIVE_ISO_PATH/casper/initrd.lz
     cp /usr/lib/ISOLINUX/isolinux.bin image/isolinux/
     cp /usr/lib/syslinux/modules/bios/ldlinux.c32 image/isolinux/ # for syslinux 5.00 and newer
     cp /boot/memtest86+.bin image/install/memtest
@@ -389,130 +522,7 @@ extract_iso_to_disk() {
 make_disk_bootable() {
     error_exit "operation not supported yet"
 }
-#takes an argument
-check_for_space(){
-    availSpace=$(df "${1}" | awk 'NR==2 { print $4 }')
-    if (( availSpace < reqSpace )); then
-        echo "not enough Space" >&2
-        exit 1
-    fi
-}
-# you better follow directions better or you are going to fuck your shit up
-yn(){
-    if ${1} | tr [:upper:] [:lower:] == "n" ; then
-        echo 'n'
-    elif ${1} | tr [:upper:] [:lower:] == "y" ; then
-        echo "y"
-    else
-        error_exit "Something Strange happened with a yes no option! Check the Logfile!!"
-    fi
-}
-# make sure they put "y" or "n"
-analyze_yes_no_opts(){
-###### ISO USE #####################################################        
-    #Mounts the ISO file if an ISO is used
-    if $(yn) $USE_ISO == 'n' ; then
-        info "Not Using An ISO"
-    elif $(yn) $USE_ISO == 'y' ; then
-        cecho " Mounting ISO file in /tmp" green ""
-        mount_iso_on_temp;
-    else 
-        error_exit " That wasn't a 'y' or 'n' in those boolean options for Using an ISO"
-    fi
-###### ISO CREATION ################################################
-    if $(yn) $MAKE_ISO_opt == "n" ; then
-        MAKE_ISO=0
-        echo "not working yet"
-    elif $(yn) $MAKE_ISO_opt == "y" ; then
-        MAKE_ISO=1
-        echo "not working yet"
-    else
-        error_exit " That wasn't a 'y' or 'n' in those boolean options for Creating an ISO"
-    fi
- ###### SANDBOX ONLY ###################################################   
-    if $(yn) $SANDBOX == "n" ; then
-        ONLY_SANDBOX=0    
-    elif $(yn) $SANDBOX == "y" ; then
-        ONLY_SANDBOX=1
-    else 
-        error_exit " That wasn't a 'y' or 'n' in those boolean options for Sandbox"
-    fi
-###### FILESYSTEM ONLY ################################################
-    if $(yn) $FILESYSTEM == "n" ]; then
-        ONLY_FILESYSTEM=0
-    elif $(yn) $FILESYSTEM == "n" ]; then
-        ONLY_FILESYSTEM=1
-    else 
-        error_exit " That wasn't a 'y' or 'n' in those boolean options for Filesystem"
-    fi
-}
-#=========================================================
-#            Colorization stuff
-#=========================================================
-black='\E[30;47m'
-red='\E[31;47m'
-green='\E[32;47m'
-yellow='\E[33;47m'
-blue='\E[34;47m'
-magenta='\E[35;47m'
-cyan='\E[36;47m'
-white='\E[37;47m'
-info_blue ='\033[1;36m'
-warn_yell ='\033[1;33m'
-fatal_red ='\033[1;31m'
-alias Reset="tput sgr0"      #  Reset text attributes to normal
-                             #+ without clearing screen.
-cecho (){
-	# Argument $1 = message
-	# Argument $2 = color
-	local default_msg="No message passed."
-    # Doesn't really need to be a local variable.
-	# Message is first argument OR default
-	message=${1:-$default_msg}
-	# olor is second argument OR white
-	color=${2:$white}
-	# extra message field in case you want uncolored stuff after the colored stuff
-	last_word=${3:''}
-	if [ $color='lolz' ]
-	then
-		echo $message | lolcat
-		return
-	else
-		message=${1:-$default_msg}   # Defaults to default message.
-		color=${2:-$black}           # Defaults to black, if not specified.
-		echo -e "$color"
-		echo "$message"
-		Reset                      # Reset to normal.
-		echo "$last_word"
-		return
-    fi
-}  
-info() { cecho "[INFO]" info_blue " $*"; }
-warn() { cecho "[WARNING]" warn_yello "$*"; }
-fatal() { cecho "[FATAL] " fatal_red " $*" ; exit 1 ; }
-error_exit(){
-	cecho "$1" red "" 1>&2 >> $LOGFILE
-	exit 1
-}
-get_permission () {
-  warn 'This script might do terrible things.'
-  read -rp  "Are you sure you wish to continue (Y/n)? " 
-  if [ "$(echo "${REPLY}" | tr "[:upper:]" "[:lower:]")" = "n" ] ; then
-    fatal 'Exiting Program'
-  fi
-}
-check_os () {
-  info "Detecting OS..."
-  OS=$(uname)
-  readonly OS
-  info "Operating System: $OS"
-  if [ "${OS}" = "Linux" ] ; then
-    info "You appear to be on the correct OS"
-  else [ "${OS}" = "FreeBSD" || "OpenBSD" || "Darwin" ]
-    fatal "Cannot work on :" "$OS"
-  fi
-  return 1
-}
+
 deboot_first_stage(){
 ##### Sequential commands with error checking ##########################################################################
 	cecho "[+] Beginning Debootstrap" yellow
@@ -982,7 +992,7 @@ elif [ $ONLY_SANDBOX -eq 1 ] && [ $ONLY_FILESYSTEM -eq 0 ]; then
     # They want to use an iso, modify it and repack it into an iso
     # OTHER OTHER MAIN FUNCTION FOR THIS SCRIPT
             elif [ USE_ISO -eq 1 ] && [ MAKE_ISO -eq 1 ]; then
-                error_exit "Currently Using and Generating an ISO together is not supported, wait for version 2"
+                error_exit "Currently Using and Generating an ISO together is not supported, wait for version 2... fuck that its going in version 1"
                 mount_iso_on_temp
                 extract_iso
                 deboot_first_stage
