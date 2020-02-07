@@ -383,12 +383,13 @@ make_iso_folders(){
 # Encountered an Error and had to fix it.
     for folder in "${LIVE_ISO_FOLDERS[@]}"
 # Folder was already created
-        if [ -d "$TEMP_LIVE_ISO_BUILD_PATH/$folder" ]; then
-            cecho "[+] $TEMP_LIVE_ISO_BUILD_PATH/$folder ALREADY EXISTS!" green ""
+        do
+                if [ -d "$TEMP_LIVE_ISO_BUILD_PATH/$folder" ]; then
+                        cecho "[+] $TEMP_LIVE_ISO_BUILD_PATH/$folder ALREADY EXISTS!" green ""
 # Folder was not created and must be manifested from the ether
-        else
-            if mkdir $TEMP_LIVE_ISO_BUILD_PATH/$folder; then
-                cecho "[+] Created $TEMP_LIVE_ISO_BUILD_PATH/$folder!" green ""
+                else
+                    if mkdir $TEMP_LIVE_ISO_BUILD_PATH/$folder; then
+                        cecho "[+] Created $TEMP_LIVE_ISO_BUILD_PATH/$folder!" green ""
 # Something strange happened and we cannot continue with ISO creation
 # without those necessary folders so we EXIT and let the user deal with
 # the problem
@@ -442,7 +443,7 @@ makeiso_from_debootstrap() {
     else
         warn "Could Not Copy ldlinux.c32, This Is A Problem"
     fi
-    if rsync --info=progress2 $SANDBOX/boot/memtest86+.bin $TEMP_LIVE_ISO_BUILD_PATH/install/memtest
+    if rsync --info=progress2 $SANDBOX/boot/memtest86+.bin $TEMP_LIVE_ISO_BUILD_PATH/install/memtest;then
         cecho "[+] Success!" green ""
     else
         warn "Could Not Copy Memtest86+, This Is Maybe A Problem"
@@ -1072,9 +1073,8 @@ elif [ ONLY_SANDBOX -eq 0 ] && [ ONLY_FILESYSTEM -eq 0 ]; then
                 deboot_third_stage
                 format_disk $SANDBOX
                 partition_disk
-
             else
-
+                error_exit "SOMETHING STUPID HAPPENED!"
             fi
         fi
     fi
@@ -1085,7 +1085,7 @@ fi
 exit
 verify_live_iso
 warn "What exactly are you trying to do MISTER!?"
-linux-image-generic (4.15.0.76.78 [amd64, i386], 4.15.0.20.23 [arm64, armhf, ppc64el, s390x]) [security]
-    Generic Linux kernel image
-linux-generic (4.15.0.76.78 [amd64, i386], 4.15.0.20.23 [arm64, armhf, ppc64el, s390x]) [security]
-    Complete Generic Linux kernel and headers
+#linux-image-generic (4.15.0.76.78 [amd64, i386], 4.15.0.20.23 [arm64, armhf, ppc64el, s390x]) [security]
+#    Generic Linux kernel image
+#linux-generic (4.15.0.76.78 [amd64, i386], 4.15.0.20.23 [arm64, armhf, ppc64el, s390x]) [security]
+#    Complete Generic Linux kernel and headers
