@@ -48,12 +48,14 @@ use std::io::BufReader;
 use std::io::prelude::*;
 
 
-let resolv_conf = ""
-let dnsmasq_conf = ""
-let hosts_conf = ""
-let hosts = ""
-let hosts_allow = ""
-let hosts_deny = ""
+let resolv_conf = "/etc/resolv.conf"
+let dnsmasq_conf = "/ets/dnsmasq.conf"
+let hosts_conf = "/etc/hosts.conf"
+let hosts = "/etc/hosts"
+let hosts_allow = "/etc/hosts.allow"
+let hosts_deny = "/etc/hosts.deny"
+// why did i put a second hosts.conf?
+// look for that file you were looking at when you wrote this
 let hosts_conf = ""
 let resolved_conf = ""
 let resolved_conf_head = ""
@@ -70,14 +72,17 @@ let resolved_conf_head = ""
 // Buffered File Reading From The Official Docs
 // Returns 
 fn read_dns_file( file_to_edit : String ) -> std::io::Result<()> {
-    let file = File::open(file_to_edit)?;
-    let mut buf_reader = BufReader::new(file);
-    let mut contents = String::new();
-    buf_reader.read_to_string(&mut contents)?;
-    //assert_eq!(contents, "Hello, world!");
+  // OPEN file
+  let file = File::open(file_to_edit)?;
+  // Put The File Into A Buffer
+  let mut buf_reader = BufReader::new(file);
+  // Prepare a variable to hold the strings from the buffer  
+  let mut buffer_contents = String::new();
+  // Turn the text file buffer into a string
+  let buffer_string buffer_reader.read_to_string(&mut buffer_contents)?;
+
     // DO STUFF
-    
-    Ok(())
+
 }
 
 // Returns strings for display in Ncurses Terminal. 
