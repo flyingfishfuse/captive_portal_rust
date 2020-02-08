@@ -70,8 +70,10 @@ let resolved_conf_head = ""
 //      
 //
 // Buffered File Reading From The Official Docs
-// Returns 
-fn read_dns_file( file_to_edit : &str ) -> std::io::Result<()> {
+// Writing stored configuration or single line to file
+// boolean switch for single line ADDITION versus whole file alteration
+// Try not to be stupid and do eventually end up writing something better than what you just fucking typed you utter moron 
+fn write_conf_to_dns_file( file_to_edit : &str ) -> std::io::Result<()> {
   // OPEN file
   let file = File::open(file_to_edit)?;
   // ADD ERROR FUNCTIONALITY
@@ -81,7 +83,7 @@ fn read_dns_file( file_to_edit : &str ) -> std::io::Result<()> {
   // Prepare a variable to hold the strings from the buffer  
   let mut buffer_contents = String::new();
   // Burrows the data from the text file buffer and makes it into a string
-  let buffer_string = buffer_reader.read_to_string(&mut buffer_contents)?;
+  let mut buffer_string = buffer_reader.read_to_string(&mut buffer_contents)?;
 
     // DO STUFF
 
