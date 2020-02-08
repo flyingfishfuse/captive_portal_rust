@@ -71,15 +71,17 @@ let resolved_conf_head = ""
 //
 // Buffered File Reading From The Official Docs
 // Returns 
-fn read_dns_file( file_to_edit : String ) -> std::io::Result<()> {
+fn read_dns_file( file_to_edit : &str ) -> std::io::Result<()> {
   // OPEN file
   let file = File::open(file_to_edit)?;
+  // ADD ERROR FUNCTIONALITY
+
   // Put The File Into A Buffer
   let mut buf_reader = BufReader::new(file);
   // Prepare a variable to hold the strings from the buffer  
   let mut buffer_contents = String::new();
-  // Turn the text file buffer into a string
-  let buffer_string buffer_reader.read_to_string(&mut buffer_contents)?;
+  // Burrows the data from the text file buffer and makes it into a string
+  let buffer_string = buffer_reader.read_to_string(&mut buffer_contents)?;
 
     // DO STUFF
 
