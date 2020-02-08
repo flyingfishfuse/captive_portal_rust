@@ -42,6 +42,12 @@ use std::net::{SocketAddr,
               Ipv6Addr};
 use std::io::prelude::*;
 
+// File I/O Stuff
+use std::fs::File;
+use std::io::BufReader;
+use std::io::prelude::*;
+
+
 let resolv_conf = ""
 let dnsmasq_conf = ""
 let hosts_conf = ""
@@ -52,3 +58,34 @@ let hosts_conf = ""
 let resolved_conf = ""
 let resolved_conf_head = ""
 
+// Ok... we need:
+//
+//  To make a LAN with the ability to:
+//      resolve domains normally
+//      resolve SPECIFIC domains with arbitrary (most likley LOCAL) IP's and PORTS and FILES
+//      set the HOSTNAME of the host
+//      be secure
+//      
+//
+// Buffered File Reading From The Official Docs
+// Returns 
+fn read_dns_file( file_to_edit : String ) -> std::io::Result<()> {
+    let file = File::open(file_to_edit)?;
+    let mut buf_reader = BufReader::new(file);
+    let mut contents = String::new();
+    buf_reader.read_to_string(&mut contents)?;
+    //assert_eq!(contents, "Hello, world!");
+    // DO STUFF
+    
+    Ok(())
+}
+
+// Returns strings for display in Ncurses Terminal. 
+//  Return Value is maybe an array of strings?
+//    Each string is a command output?
+//  Return Value is maybe error?
+//    Display Ncurses strings directly from function?
+fn start_dnsmasq() std::io::Result<()> {
+
+    
+}
