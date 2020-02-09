@@ -161,7 +161,16 @@ fn setup_listener(portal_ip: [i32; 3], localhost_port: i32){
 // threader(function_to_run)
 //
 // AND have "execute()" in the function being passed
-fn threader(num_threads : i32 , execute : fn() ) {
+fn generic_threader(num_threads : i32 , process_to_thread : fn() ) {
+    if num_threads < max_threads {
+        let mut pool = ThreadPool::new(num_threads);
+        process_to_thread
+    } else {
+
+    }
+}
+
+fn connection_threader( num_threads : i32 ) {
     if num_threads < max_threads {
         let mut pool = ThreadPool::new(num_threads);
         for stream in listener.incoming() {
@@ -174,6 +183,8 @@ fn threader(num_threads : i32 , execute : fn() ) {
             //    handle_connection(stream);
             //});
         }
+    } else {
+        
     }
 }
 // server handler
