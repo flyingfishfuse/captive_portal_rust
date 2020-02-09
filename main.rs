@@ -156,7 +156,6 @@ fn setup_listener(portal_ip: [i32; 3], localhost_port: i32){
     let localhost_listener = TcpListener::bind(&localhost_address).unwrap();
     // only so many threads can be allowed to prevent DDOS, race conditions, and possible buffer overflows
 }    
-
 // pass function like:
 // threader(function_to_run)
 //
@@ -184,7 +183,7 @@ fn connection_threader( num_threads : i32 ) {
             //});
         }
     } else {
-        
+
     }
 }
 // server handler
