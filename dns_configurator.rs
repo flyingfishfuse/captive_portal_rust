@@ -94,7 +94,17 @@ fn write_conf_to_dns_file( file_to_edit : &str ) -> std::io::Result<()> {
 //    Each string is a command output?
 //  Return Value is maybe error?
 //    Display Ncurses strings directly from function?
-fn start_dnsmasq() std::io::Result<()> {
+https://doc.rust-lang.org/std/process/struct.Command.html
+fn start_dnsmasq(arg_param : &str) std::io::Result<()> {
+  let mut dnsmasq_args = &arg_param
+  let dnsmasq_start_ststus = Command::new("/usr/sbin/dnsmasq").arg(&dnsmasq_args).status().expect("Dnsmasq failed to start for some reason, check the logfile.");
+  println!("process exited with: {}", status);
+  assert!(status.success())
+  
+  
+};
 
-    
+fn stop_dnsmasq() std::io::Result<()> {
+
+
 }
