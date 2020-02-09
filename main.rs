@@ -4,8 +4,35 @@ I have officially decided to use my bash script as a pure linux solution
 allowing me to create a safe sandbox environment to heighten the security
 of the portal. It will be presented as an advanced option during setup.
 
-rustup toolchain add nightly
-cargo install +nightly racer
+make a script to do this automagically
+/etc/NetworkManager/NetworkManager.conf
+[main]
+dns=dnsmasq
+sudo systemctl restart NetworkManager
+sudo rm /etc/resolv.conf; sudo ln -s /var/run/NetworkManager/resolv.conf /etc/resolv.conf
+
+CHANGE /etc/default/dnsmasq TO IGNORE SYSTEMD-RESOLVE SHIT
+
+
+beef needs config files changed or saved here
+
+so does metasploit
+
+w3af:
+
+remove python-webkit from the install line in the /tmp/w3af_install.sh
+sudo apt-get install gir1.2-webkit-3.0 python-gi
+
+and apparently you need ot install webkit manually from:
+
+
+
+necessary for hacking module:
+resolvconf
+beef
+metasploit
+phishing frenzy
+armitage
 
 #########################################
 ##                                     ##
@@ -40,6 +67,7 @@ A value of type str is a Unicode string, represented as an array of 8-bit unsign
  a first-class type, but can only be instantiated through a pointer type, such as &str.
 
 
+# csrf-token = { git = "ssh://git@github.com/3dom-co-jp/csrf-token.git"}
 
 
 */
@@ -52,8 +80,8 @@ mod login_redirect_generator;
 mod noodle_tail;
 mod threadpoo;
 mod USER_AUTH;
-mod oauth2;
-// USE LIKE THIS captive_portal_option_parse::parse_commandline_arguments();
+//mod oauth2;
+// USE LIKE THIS captive_portal_option_parse::parse_commandline_arguments()
 
 //extern crate scoped_threadpool;
 //use scoped_threadpool::Pool;
@@ -87,14 +115,22 @@ use std::net::{SocketAddr,
               Ipv4Addr, 
               Ipv6Addr};
 use std::io::prelude::*;
-
+use std::process::Command;
 // Some variables for static things
 
+let max_threads = 4;
 
 // add conditional to use ncurses output
 fn shutdown_server(){
     termcolorprint( "red", "SHUTTING DOWN");
     //add stuff here
+}
+
+// This is getting put in a seperate file
+/// Find and store the info on EVERY device seen.
+/// we gonna be impersonating them mebbe.
+fn save_network_device_info(){
+
 }
 
 /////////////////////////////////////////////////
@@ -120,21 +156,26 @@ fn setup_listener(portal_ip: [i32; 3], localhost_port: i32){
     let localhost_listener = TcpListener::bind(&localhost_address).unwrap();
     // only so many threads can be allowed to prevent DDOS, race conditions, and possible buffer overflows
 }    
- 
-fn threader(){
-    let mut pool = ThreadPool::new(4);
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        // Spawn a new thread for every connection up to the maximum
-        pool.execute(|| {
-            handle_connection(stream);
-        });
-        //thread::spawn(|| {
-        //    handle_connection(stream);
-        //});
+
+// pass function like:
+// threader(function_to_run)
+//
+// AND have "execute()" in the function being passed
+fn threader(num_threads : i32 , execute : fn() ) {
+    if num_threads < max_threads {
+        let mut pool = ThreadPool::new(num_threads);
+        for stream in listener.incoming() {
+            let stream = stream.unwrap();
+            // Spawn a new thread for every connection up to the maximum
+            pool.execute(|| {
+                handle_connection(stream);
+            });
+            //thread::spawn(|| {
+            //    handle_connection(stream);
+            //});
+        }
     }
 }
-
 // server handler
 fn handle_connection(mut stream: TcpStream) {
 
@@ -142,7 +183,6 @@ fn handle_connection(mut stream: TcpStream) {
     let mut buffer = [0; 512];
     stream.read(&mut buffer).unwrap();
     println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
-
     let get = b"GET / HTTP/1.1\r\n";
     /* Signal responder*/
         // if its a good request
@@ -159,7 +199,6 @@ fn handle_connection(mut stream: TcpStream) {
         stream.write(response.as_bytes()).unwrap();
         stream.flush().unwrap();
     }
-
 }
 
 fn main()

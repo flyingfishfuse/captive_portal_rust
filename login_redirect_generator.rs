@@ -18,7 +18,7 @@ fn serve_form(beefhook: bool, hook_loc: str, formaction: str, ){
 
 }
 
-fn serve_redirect(redirect: i32, redir_messg: str){
+fn serve_redirect(redirect: i32, redir_messg: &str){
   let redirect_ip             = redirect;
   let redirect_message        = redir_messg;
   let html_redirect_head      = "<html><head>";
